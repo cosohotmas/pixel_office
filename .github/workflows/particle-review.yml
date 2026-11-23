@@ -1,0 +1,46 @@
+name: Particle-1 automated review
+
+# Review opened/updated PRs from branches in this repository.
+# 저장소 내부 브랜치에서 열린/갱신된 PR을 검토합니다.
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: particle-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    # Do not expose the model secret or write token to fork PRs or draft PRs.
+    # 포크 PR과 초안 PR에서는 모델 비밀값과 쓰기 토큰을 사용하지 않습니다.
+    if: >-
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.base.ref == 'main' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out trusted base branch only
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Submit a fail-closed Particle-1 review
+        # The script reads the diff through GitHub's API and never checks out or runs PR code.
+        # 스크립트는 GitHub API로 diff만 읽고 PR 코드를 체크아웃하거나 실행하지 않습니다.
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: python scripts/particle_review.py
