@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>픽셀 사무실</title>
+<style>
+:root{--bg:#e9e6dd;--fg:#25262b;--card:#f8f7f3;--mut:#62636c;--bd:#c9c5b8;--btn:#2f5fd0;--btnfg:#fff;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15161b;--fg:#ececf0;--card:#1e2027;--mut:#9a9ba6;--bd:#33353f;--btn:#6f93f0;--btnfg:#10131c}}
+:root[data-theme="dark"]{--bg:#15161b;--fg:#ececf0;--card:#1e2027;--mut:#9a9ba6;--bd:#33353f;--btn:#6f93f0;--btnfg:#10131c}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font-family:"Pretendard","Noto Sans KR",system-ui,sans-serif;line-height:1.5}
+.wrap{max-width:980px;margin:0 auto;padding:14px}
+header{display:flex;flex-wrap:wrap;align-items:center;gap:10px;justify-content:space-between;margin-bottom:10px}
+h1{font-size:20px;margin:0}
+button{background:var(--btn);color:var(--btnfg);border:0;border-radius:6px;padding:8px 14px;font:inherit;font-weight:600;cursor:pointer}
+button:focus-visible{outline:3px solid var(--fg);outline-offset:2px}
+button:disabled{opacity:.5;cursor:default}
+canvas{display:block;width:100%;height:auto;image-rendering:pixelated;border:2px solid var(--bd);border-radius:4px;background:#222}
+.row{display:grid;grid-template-columns:1fr;gap:12px;margin-top:12px}
+@media(min-width:760px){.row{grid-template-columns:3fr 2fr}}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:6px;padding:12px;overflow-x:auto}
+.card h2{font-size:14px;margin:0 0 8px}
+#log{list-style:none;margin:0;padding:0;font-size:13px;min-height:150px}
+#log li{padding:3px 0;border-bottom:1px solid var(--bd)}
+.leg{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;color:var(--mut)}
+.leg i{display:inline-block;width:10px;height:10px;margin-right:5px;border-radius:2px}
+code{font-size:12px;background:var(--bg);padding:2px 5px;border-radius:3px;word-break:break-all}
+p{margin:6px 0;font-size:13px;color:var(--mut)}
+</style></head>
+<body><div class="wrap">
+<header><h1>픽셀 사무실 · 에이전트 8인</h1><button id="go">작업 보내기</button></header>
+<canvas id="c" width="960" height="600" aria-label="에이전트 8명이 일하는 픽셀 사무실"></canvas>
+<div class="row">
+<div class="card"><h2>활동 기록</h2><ul id="log"></ul></div>
+<div class="card"><h2>상태 색</h2><div class="leg" id="leg"></div>
+<p>지금은 가짜 데이터로 움직이는 시연이에요. 실제 Cline 기록과 연결하면 아래 함수만 호출하면 됩니다.</p>
+<p><code>updateAgent('fs','working','로그인 API 구현')</code></p></div>
+</div></div>
+<script>
+const S=3,c=document.getElementById('c'),x=c.getContext('2d');x.imageSmoothingEnabled=false;
+const R=(a,b,w,h,col)=>{x.fillStyle=col;x.fillRect(a*S,b*S,w*S,h*S)};
+const SC={idle:'#9aa0a6',awaiting:'#f0b429','starting up':'#4aa8ff',working:'#2fbf71',done:'#8a96ff',planning:'#c26aff'};
+const SKIN='#f2c9a0';
+const A=[
+{id:'tl',n:'Tech Lead',k:'테크 리드',x:62,y:36,sh:'#3b6fd8',hr:'#2b2b2b'},
+{id:'fs',n:'Full-stack',k:'풀스택',x:14,y:70,sh:'#4aa86b',hr:'#5a3a1e'},
+{id:'sec',n:'SecOps',k:'보안',x:106,y:70,sh:'#1e1e24',hr:'#2b2b2b'},
+{id:'ad',n:'Art Director',k:'아트 디렉터',x:176,y:36,sh:'#d9d2c0',hr:'#6a3a2a'},
+{id:'mr',n:'Researcher',k:'벤치마킹',x:264,y:36,sh:'#c77f3e',hr:'#222'},
+{id:'tt',n:'Trend',k:'트렌드 분석',x:220,y:78,sh:'#8a5fd0',hr:'#b06a2a'},
+{id:'lc',n:'Legal',k:'IT/AI 변호사',x:40,y:140,sh:'#4a4f66',hr:'#2b2b2b'},
+{id:'eu',n:'End-User',k:'일반 사용자',x:232,y:146,sh:'#e0708a',hr:'#3a2a1a'}];
+const G={};A.forEach(a=>G[a.id]=a);A.forEach(a=>{a.s='idle';a.m=''});
+const ROOMS=[[0,0,160,100,'#7f9c8f','#78958a','엔지니어링 & 보안'],[160,0,160,100,'#b39b86','#ab9480','크리에이티브 & 리서치'],[0,100,160,100,'#8e94b0','#878dab','법무'],[160,100,160,100,'#b08f95','#a8878d','유저 라운지']];
+function floor(){ROOMS.forEach(([a,b,w,h,c1,c2,l])=>{for(let i=0;i<w/10;i++)for(let j=0;j<h/10;j++)R(a+i*10,b+j*10,10,10,(i+j)%2?c1:c2);R(a,b,w,8,'#363948');});
+ R(158,0,4,40,'#eee');R(158,60,4,40,'#eee');R(158,102,4,38,'#eee');R(158,160,4,40,'#eee');
+ R(0,98,60,4,'#eee');R(90,98,140,4,'#eee');R(260,98,60,4,'#eee');
+ R(50,10,44,6,'#f5f5f5');R(53,12,12,1,'#3b6fd8');R(68,12,20,1,'#d94c4c');R(53,14,30,1,'#2fbf71');
+ R(110,110,34,14,'#7a4a2a');[0,1,2,3,4,5].forEach(i=>R(112+i*5,112,4,10,['#c0392b','#2980b9','#27ae60','#f1c40f','#8e44ad','#e67e22'][i]));
+ [[148,14],[150,84],[300,14],[190,84],[150,180],[300,180]].forEach(([a,b])=>{R(a,b+3,6,4,'#8a5a30');R(a+1,b,4,4,'#2e9d4f')});
+ R(222,172,26,8,'#a8763e');R(226,170,6,2,'#fff');}
+function st(a){return SC[a.s]}
+function agent(a,t){
+ const cx=a.x+3,cy=a.y-14,f=Math.floor(t/180)%2,bob=a.s==='idle'&&Math.floor(t/700)%2?1:0;
+ if(a.id==='eu'){R(a.x-2,a.y-8,32,8,'#6a3d4c')}
+ R(cx+1,cy+1+bob,6,5,SKIN);R(cx+1,cy+bob,6,2,a.hr);R(cx+2,cy+3+bob,1,1,'#222');R(cx+5,cy+3+bob,1,1,'#222');R(cx,cy+6,8,8,a.sh);
+ if(a.id==='sec'){R(cx-1,cy+4,10,2,'#222')}
+ if(a.id==='ad'){R(cx,cy-1,9,2,'#c0392b');R(cx+4,cy-2,2,1,'#c0392b')}
+ if(a.id==='lc'){R(cx+3,cy+6,2,6,'#a02020')}
+ if(a.id==='tt'&&a.s==='working'){R(cx+10,cy-6,4,4,'#ffe066');R(cx+11,cy-2,2,1,'#999')}
+ if(a.id==='eu'){R(a.x-4,a.y,36,8,'#8a4d60');R(a.x-4,a.y-6,4,14,'#7b4558');R(a.x+28,a.y-6,4,14,'#7b4558');R(cx+2,a.y-3,4,3,a.s==='working'?'#7ab8ff':'#222')}
+ else{R(a.x,a.y,24,7,'#a8763e');R(a.x,a.y,24,2,'#c58f50');R(a.x+13,a.y-8,8,7,'#222');R(a.x+14,a.y-7,6,5,st(a));R(a.x+16,a.y-1,4,1,'#555');
+  if(a.id==='sec'){R(a.x-8,a.y-4,6,5,'#f1c40f');R(a.x-7,a.y-7,4,3,'#999')}
+  if(a.id==='mr'){R(a.x-8,a.y+1,7,3,'#fff');R(a.x-8,a.y-1,7,2,'#e8e8e8')}
+  if(a.id==='lc'){R(a.x-8,a.y,2,5,'#999');R(a.x-11,a.y,8,1,'#999');R(a.x-11,a.y+1,2,2,'#999');R(a.x-5,a.y+1,2,2,'#999')}}
+ if(a.s==='working'){R(cx-1+f,a.y-2,2,2,SKIN);R(cx+7-f,a.y-2,2,2,SKIN)}
+}
+function label(a){
+ x.font='bold 11px "Noto Sans KR",sans-serif';x.textAlign='center';
+ const ny=(a.y+(a.id==='eu'?17:13))*S,nx=(a.x+(a.id==='eu'?14:12))*S;
+ x.fillStyle='rgba(0,0,0,.55)';const w=x.measureText(a.k).width+10;x.fillRect(nx-w/2,ny-10,w,15);
+ x.fillStyle='#fff';x.fillText(a.k,nx,ny+2);
+}
+function bubble(a){
+ const txt=a.s+(a.m&&a.s!=='idle'?' · '+a.m:'');
+ x.font='bold 12px "Noto Sans KR",sans-serif';x.textAlign='left';
+ const w=x.measureText(txt).width+26,h=20;let bx=(a.x+7)*S-w/2,by=(a.y-24)*S-h;
+ bx=Math.max(4,Math.min(c.width-w-4,bx));by=Math.max(26,by);
+ x.fillStyle='#222';x.fillRect(bx-2,by-2,w+4,h+4);x.fillStyle='#fff';x.fillRect(bx,by,w,h);
+ x.fillStyle=st(a);x.fillRect(bx+5,by+6,8,8);
+ x.fillStyle='#222';x.fillText(txt,bx+18,by+14);
+ const tx=Math.max(bx+10,Math.min(bx+w-16,(a.x+7)*S));x.fillStyle='#222';x.fillRect(tx-4,by+h+2,8,4);
+}
+function draw(t){
+ floor();
+ x.font='bold 11px "Noto Sans KR",sans-serif';x.textAlign='left';x.fillStyle='#fff';
+ ROOMS.forEach(r=>x.fillText(r[6],r[0]*S+8,(r[1]+6)*S+4));
+ [...A].sort((p,q)=>p.y-q.y).forEach(a=>agent(a,t));
+ A.forEach(label);
+ A.forEach(bubble);
+ requestAnimationFrame(draw);
+}
+requestAnimationFrame(draw);
+const ul=document.getElementById('log'),t0=()=>new Date().toLocaleTimeString('ko-KR',{hour12:false});
+function updateAgent(id,s,m){const a=G[id];if(!a)return;a.s=s;a.m=m||'';
+ const li=document.createElement('li');li.textContent=t0()+'  '+a.k+' → '+s+(m?' ('+m+')':'');ul.prepend(li);while(ul.children.length>9)ul.lastChild.remove()}
+window.updateAgent=updateAgent;
+document.getElementById('leg').innerHTML=Object.entries(SC).map(([k,v])=>'<span><i style="background:'+v+'"></i>'+k+'</span>').join('');
+const SEQ=[[0,'tl','planning','요구사항 분석'],[1500,'mr','starting up',''],[1500,'tt','starting up',''],[2200,'mr','working','경쟁 서비스 조사'],[2200,'tt','working','최신 모델 검색'],[2500,'tl','working','구조 설계'],[4200,'ad','working','UI 가이드'],[5500,'mr','done','차별점 정리'],[5800,'tt','done','추천 3건'],[6500,'fs','starting up',''],[7000,'fs','working','기능 구현'],[7500,'ad','done','팔레트 확정'],[10500,'fs','done','구현 완료'],[10800,'sec','working','취약점 점검'],[11000,'lc','working','약관·저작권 검토'],[13500,'sec','awaiting','키 노출 1건 확인'],[14500,'sec','working','재검토'],[15500,'sec','done','이상 없음'],[15800,'lc','done','검토 완료'],[16200,'eu','starting up',''],[16800,'eu','working','직접 써보는 중'],[19000,'eu','awaiting','버튼이 어디 있죠?'],[20500,'eu','done','피드백 전달'],[21000,'tl','done','릴리스 판단'],[23500,'*','idle','']];
+let timers=[];const btn=document.getElementById('go');
+function run(){timers.forEach(clearTimeout);timers=[];btn.disabled=true;
+ SEQ.forEach(([ms,id,s,m])=>timers.push(setTimeout(()=>{if(id==='*'){A.forEach(a=>{a.s='idle';a.m=''});btn.disabled=false}else updateAgent(id,s,m)},ms)))}
+btn.onclick=run;setTimeout(run,700);
+</script></body></html>
