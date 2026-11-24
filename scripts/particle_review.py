@@ -24,6 +24,25 @@ class ReviewError(Exception):
     """Represent a safe-to-report review failure."""
 
 
+def github_error_summary(error: urllib.error.HTTPError) -> str:
+    """Keep only GitHub validation fields and never print the full response.
+    GitHub 검증 필드만 남기고 전체 응답은 출력하지 않습니다.
+    """
+    try:
+        payload = json.loads(error.read().decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return "no structured error details"
+    message = payload.get("message")
+    errors = payload.get("errors")
+    parts = [message] if isinstance(message, str) else []
+    if isinstance(errors, list):
+        for item in errors[:5]:
+            if isinstance(item, dict):
+                fields = {key: item[key] for key in ("resource", "field", "code", "message") if key in item}
+                parts.append(json.dumps(fields, ensure_ascii=False, sort_keys=True))
+    return "; ".join(parts)[:1_000] or "no structured error details"
+
+
 def request_json(url: str, token: str, *, method: str = "GET", payload: dict | None = None):
     """Send one authenticated GitHub API request and return its JSON response."""
     headers = {
@@ -41,7 +60,7 @@ def request_json(url: str, token: str, *, method: str = "GET", payload: dict | N
         with urllib.request.urlopen(request, timeout=30) as response:
             return json.loads(response.read().decode("utf-8"))
     except urllib.error.HTTPError as error:
-        raise ReviewError(f"GitHub API returned HTTP {error.code}.") from None
+        raise ReviewError(f"GitHub API returned HTTP {error.code}: {github_error_summary(error)}") from None
     except (urllib.error.URLError, TimeoutError, json.JSONDecodeError):
         raise ReviewError("GitHub API request failed or returned invalid JSON.") from None
 
