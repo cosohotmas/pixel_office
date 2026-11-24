@@ -6,3 +6,10 @@ def insecure_query(user_id: str) -> str:
     제한된 리뷰 fixture를 위해 의도적으로 안전하지 않은 SQL을 반환합니다.
     """
     return f"SELECT * FROM users WHERE id = '{user_id}'"
+
+
+def unsafe_log(user_id: str) -> str:
+    """Return a bounded fixture that exposes a user identifier in a log line.
+    사용자 식별자를 로그 줄에 노출하는 제한된 fixture를 반환합니다.
+    """
+    return f"review user={user_id}"
