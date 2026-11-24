@@ -10,7 +10,7 @@ import urllib.error
 import urllib.request
 
 
-MODEL = "particle-ai/particle-1:free"
+DEFAULT_MODELS = ("particle-ai/particle-1:free", "openrouter/free")
 MAX_DIFF_BYTES = 48_000
 MAX_REVIEW_CHARS = 16_000
 MAX_FINDINGS = 20
@@ -127,10 +127,21 @@ def parse_review(raw: str, paths: set[str]) -> dict:
     return {"confidence": confidence, "summary": summary, "findings": validated}
 
 
-def ask_particle(api_key: str, title: str, diff: str) -> dict:
-    """Ask the selected model for bounded, structured findings about the diff."""
+def configured_models() -> list[str]:
+    """Read the ordered model failover list without exposing credentials.
+    자격 증명을 노출하지 않고 순서가 지정된 모델 failover 목록을 읽습니다.
+    """
+    configured = os.environ.get("OPENROUTER_MODELS", "")
+    models = [item.strip() for item in configured.split(",") if item.strip()]
+    return models or list(DEFAULT_MODELS)
+
+
+def ask_particle(api_key: str, title: str, diff: str, model: str) -> dict:
+    """Ask one model for bounded, structured findings about the diff.
+    모델 하나에 diff의 제한된 구조화 리뷰를 요청합니다.
+    """
     body = {
-        "model": MODEL,
+        "model": model,
         "max_tokens": 2_000,
         "temperature": 0.1,
         "provider": {"allow_fallbacks": False},
@@ -266,7 +277,18 @@ def main() -> int:
             reason = "OPENROUTER_API_KEY가 설정되지 않았습니다. 자동 승인은 제출하지 않았습니다."
         else:
             try:
-                review = ask_particle(api_key, pull.get("title", ""), diff)
+                review = None
+                failures = []
+                for model in configured_models():
+                    try:
+                        review = ask_particle(api_key, pull.get("title", ""), diff, model)
+                        print(f"Particle review succeeded with configured model {model}.")
+                        break
+                    except ReviewError as error:
+                        failures.append(f"{model}: {error}")
+                        print(f"Particle review model failed; trying the next configured model: {model}")
+                if review is None:
+                    raise ReviewError("; ".join(failures))
                 reason = None
                 if review["confidence"] != "high":
                     event = "COMMENT"
