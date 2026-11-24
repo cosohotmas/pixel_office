@@ -123,6 +123,7 @@ def send_slack_notification(webhook_url: str, repository: str, pull_number: str,
     with urllib.request.urlopen(request, timeout=30) as response:
         if response.status < 200 or response.status >= 300:
             raise RuntimeError(f"Slack webhook returned HTTP {response.status}")
+        print(f"Slack webhook accepted HTTP {response.status} for channel {channel_name}")
 
 
 def existing_ai_review(pr_url: str, token: str, commit_sha: str) -> tuple[str, str] | None:
