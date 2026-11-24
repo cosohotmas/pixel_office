@@ -125,6 +125,20 @@ def send_slack_notification(webhook_url: str, repository: str, pull_number: str,
             raise RuntimeError(f"Slack webhook returned HTTP {response.status}")
 
 
+def existing_ai_review(pr_url: str, token: str, commit_sha: str) -> tuple[str, str] | None:
+    """Find an existing AI COMMENT for this exact commit.
+    같은 커밋에 이미 있는 AI COMMENT를 찾습니다.
+    """
+    reviews = request_json(pr_url + "/reviews?per_page=100", token=token)
+    for item in reversed(reviews):
+        body = str(item.get("body", ""))
+        if item.get("commit_id") == commit_sha and body.startswith("## AI review ("):
+            reviewer = body.split("## AI review (", 1)[1].split(")", 1)[0]
+            review = body.split("\n\n", 1)[1].rsplit("\n\n_Automatic approval is disabled._", 1)[0]
+            return reviewer, review
+    return None
+
+
 def main() -> int:
     """Validate the PR, submit COMMENT, then notify Slack.
     PR을 검증하고 COMMENT를 제출한 뒤 Slack에 알립니다.
@@ -142,6 +156,12 @@ def main() -> int:
     pr = request_json(pr_url, token=token)
     if pr["draft"] or pr["base"]["ref"] != "main" or pr["head"]["repo"]["full_name"] != repository:
         print("Review skipped by fail-closed policy")
+        return 0
+    existing = existing_ai_review(pr_url, token, str(pr["head"]["sha"]))
+    if existing:
+        reviewer, review = existing
+        print("A Particle-1 review already exists for this commit; skipping duplicate submission.")
+        send_slack_notification(slack_webhook_url, repository, pull_number, reviewer, review, f"https://github.com/{repository}/pull/{pull_number}", slack_channel_name)
         return 0
     diff = bounded_diff(repository, pull_number, token)
     try:
