@@ -325,13 +325,18 @@ def main() -> int:
         if latest.get("head", {}).get("sha") != head_sha:
             raise ReviewError("The pull request changed during review; no review was posted.")
 
+        review_body = render_review(review, event, reason)
+        print(
+            f"Submitting GitHub review event {event} with payload fields "
+            f"commit_id, body ({len(review_body)} chars), and event."
+        )
         request_json(
             reviews_api,
             token,
             method="POST",
             payload={
                 "commit_id": head_sha,
-                "body": render_review(review, event, reason),
+                "body": review_body,
                 "event": event,
             },
         )
