@@ -12,6 +12,15 @@ import urllib.request
 
 MAX_DIFF_BYTES = 120_000
 LOCK_SUFFIXES = (".lock", "package-lock.json", "pnpm-lock.yaml", "yarn.lock")
+DEFAULT_OPENROUTER_MODELS = (
+    "particle-ai/particle-1:free",
+    "recursive/flint-v1.0:free",
+    "dots-studio/dots-3-note-preview:free",
+    "nvidia/nemotron-3.5-lightning:free",
+    "google/gemma-4-26b-a4b-it:free",
+    "google/gemma-4-31b-it:free",
+    "openrouter/free",
+)
 
 
 def request_json(url: str, *, token: str | None = None, method: str = "GET", body: object | None = None) -> object:
@@ -88,7 +97,10 @@ def openrouter_model_list() -> list[str]:
     models = [item.strip() for item in configured.split(",") if item.strip()]
     if models:
         return models
-    return [os.getenv("OPENROUTER_MODEL", "particle-ai/particle-1:free")]
+    configured_single = os.getenv("OPENROUTER_MODEL", "")
+    if configured_single:
+        return [configured_single]
+    return list(DEFAULT_OPENROUTER_MODELS)
 
 
 def review_with_gemini(diff: str, api_key: str, model: str) -> str:
