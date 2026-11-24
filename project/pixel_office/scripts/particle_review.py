@@ -103,14 +103,38 @@ def review_with_gemini(diff: str, api_key: str, model: str) -> str:
     return text[:20_000]
 
 
+def send_slack_notification(webhook_url: str, repository: str, pull_number: str, reviewer: str, review: str, pr_url: str, channel_name: str) -> None:
+    """Send the completed GitHub review result to the approved Slack channel.
+    완료된 GitHub 리뷰 결과를 승인된 Slack 채널로 보냅니다.
+    """
+    message = (
+        f"*Particle-1 AI review* — {repository}#{pull_number}\n"
+        f"Model: `{reviewer}`\n"
+        f"<{pr_url}|Open pull request>\n\n"
+        f"{review[:6000]}\n\n"
+        "_Automatic approval is disabled._"
+    )
+    request = urllib.request.Request(
+        webhook_url,
+        headers={"Content-Type": "application/json", "User-Agent": "pixel-office-particle-review"},
+        method="POST",
+        data=json.dumps({"channel": channel_name, "text": message}).encode(),
+    )
+    with urllib.request.urlopen(request, timeout=30) as response:
+        if response.status < 200 or response.status >= 300:
+            raise RuntimeError(f"Slack webhook returned HTTP {response.status}")
+
+
 def main() -> int:
-    """Validate the PR, call Gemini, then submit COMMENT only.
-    PR을 검증하고 Gemini를 호출한 뒤 COMMENT만 제출합니다.
+    """Validate the PR, submit COMMENT, then notify Slack.
+    PR을 검증하고 COMMENT를 제출한 뒤 Slack에 알립니다.
     """
     token = os.environ["GITHUB_TOKEN"]
     repository = os.environ["GITHUB_REPOSITORY"]
     pull_number = os.environ["PULL_REQUEST_NUMBER"]
     gemini_key = os.environ["GEMINI_API_KEY"]
+    slack_webhook_url = os.environ["SLACK_WEBHOOK_URL"]
+    slack_channel_name = os.getenv("SLACK_CHANNEL_NAME", "#weather-conversation-app")
     openrouter_key = os.getenv("OPENROUTER_API_KEY")
     openrouter_model = os.getenv("OPENROUTER_MODEL", "particle-ai/particle-1:free")
     model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
@@ -135,6 +159,7 @@ def main() -> int:
         method="POST",
         body={"body": f"## AI review ({reviewer})\n\n{review}\n\n_Automatic approval is disabled._", "event": "COMMENT"},
     )
+    send_slack_notification(slack_webhook_url, repository, pull_number, reviewer, review, f"https://github.com/{repository}/pull/{pull_number}", slack_channel_name)
     return 0
 
 

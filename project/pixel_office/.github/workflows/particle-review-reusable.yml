@@ -17,6 +17,8 @@ on:
         required: false
       GEMINI_API_KEY:
         required: true
+      SLACK_WEBHOOK_URL:
+        required: true
 
 permissions:
   contents: read
@@ -43,4 +45,6 @@ jobs:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           OPENROUTER_MODEL: particle-ai/particle-1:free
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_CHANNEL_NAME: '#weather-conversation-app'
         run: python scripts/particle_review.py
