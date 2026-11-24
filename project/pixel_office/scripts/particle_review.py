@@ -80,6 +80,17 @@ def review_with_openrouter(diff: str, api_key: str, model: str) -> str:
     return text[:20_000]
 
 
+def openrouter_model_list() -> list[str]:
+    """Read the ordered OpenRouter failover list without inventing model IDs.
+    모델 ID를 임의로 만들지 않고 OpenRouter failover 목록을 순서대로 읽습니다.
+    """
+    configured = os.getenv("OPENROUTER_MODELS", "")
+    models = [item.strip() for item in configured.split(",") if item.strip()]
+    if models:
+        return models
+    return [os.getenv("OPENROUTER_MODEL", "particle-ai/particle-1:free")]
+
+
 def review_with_gemini(diff: str, api_key: str, model: str) -> str:
     """Ask Gemini for review text without allowing diff instructions to control policy.
     diff 안의 지시문이 정책을 바꾸지 못하도록 Gemini에 리뷰 문구만 요청합니다.
@@ -150,7 +161,7 @@ def main() -> int:
     slack_webhook_url = os.environ["SLACK_WEBHOOK_URL"]
     slack_channel_name = os.getenv("SLACK_CHANNEL_NAME", "#weather-conversation-app")
     openrouter_key = os.getenv("OPENROUTER_API_KEY")
-    openrouter_model = os.getenv("OPENROUTER_MODEL", "particle-ai/particle-1:free")
+    openrouter_models = openrouter_model_list()
     model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
     pr_url = f"https://api.github.com/repos/{repository}/pulls/{pull_number}"
     pr = request_json(pr_url, token=token)
@@ -167,8 +178,23 @@ def main() -> int:
     try:
         if not openrouter_key:
             raise RuntimeError("OPENROUTER_API_KEY is not configured")
-        review = review_with_openrouter(diff, openrouter_key, openrouter_model)
-        reviewer = openrouter_model
+        review = ""
+        reviewer = ""
+        for index, openrouter_model in enumerate(openrouter_models):
+            try:
+                review = review_with_openrouter(diff, openrouter_key, openrouter_model)
+                reviewer = openrouter_model
+                break
+            except urllib.error.HTTPError as model_error:
+                if model_error.code != 429 or index == len(openrouter_models) - 1:
+                    raise
+                next_model = openrouter_models[index + 1]
+                print(
+                    f"OpenRouter model {openrouter_model} returned HTTP 429; "
+                    f"trying configured failover model {next_model}."
+                )
+        if not review or not reviewer:
+            raise RuntimeError("OpenRouter model list produced no review")
     except (RuntimeError, urllib.error.URLError, urllib.error.HTTPError) as primary_error:
         print(f"primary reviewer failed; using Gemini fallback: {primary_error}")
         review = review_with_gemini(diff, gemini_key, model)
