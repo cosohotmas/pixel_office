@@ -11,6 +11,7 @@ import urllib.request
 
 
 DEFAULT_MODELS = ("particle-ai/particle-1:free", "openrouter/free")
+GITHUB_REVIEW_EVENT = "COMMENT"
 MAX_DIFF_BYTES = 48_000
 MAX_REVIEW_CHARS = 16_000
 MAX_FINDINGS = 20
@@ -213,17 +214,12 @@ def ask_particle(api_key: str, title: str, diff: str, model: str) -> dict:
     return parse_review(raw, changed_paths(diff))
 
 
-def render_review(review: dict, event: str, reason: str | None = None) -> str:
-    """Render escaped model text and clearly label the automated decision."""
-    headings = {
-        "APPROVE": "자동 승인",
-        "REQUEST_CHANGES": "수정 요청",
-        "COMMENT": "의견 (판단 보류)",
-    }
+def render_review(review: dict, reason: str | None = None) -> str:
+    """Render escaped model text as an informational COMMENT."""
     parts = [
         MARKER,
         "",
-        f"**Particle-1 자동 리뷰 — {headings[event]}**",
+        "**Particle-1 자동 리뷰 — 의견 (판단 보류)**",
         "",
         "이 리뷰는 AI가 생성했습니다. 사람의 독립 리뷰를 대신하지 않으며, 머지는 저장소 관리자가 직접 판단해야 합니다.",
         "",
@@ -243,10 +239,6 @@ def render_review(review: dict, event: str, reason: str | None = None) -> str:
                     f"  <pre>{html.escape(finding['reason'])}</pre>",
                 ]
             )
-    elif event == "APPROVE":
-        parts.append("치명 또는 높은 심각도의 문제가 발견되지 않았고, 모델의 판단 확신도가 높아 승인했습니다.")
-    if event == "REQUEST_CHANGES":
-        parts.extend(["", "위의 치명/높음 심각도 문제를 수정한 뒤 다시 검토해 주세요."])
     return "\n".join(parts)[:MAX_REVIEW_CHARS]
 
 
@@ -308,14 +300,8 @@ def main() -> int:
                         print(f"Particle review model failed; trying the next configured model: {model}")
                 if review is None:
                     raise ReviewError("; ".join(failures))
-                reason = None
-                if review["confidence"] != "high":
-                    event = "COMMENT"
-                    reason = "모델의 판단 확신도가 높지 않아 승인/수정 요청을 제출하지 않았습니다."
-                elif any(item["severity"] in {"critical", "high"} for item in review["findings"]):
-                    event = "REQUEST_CHANGES"
-                else:
-                    event = "APPROVE"
+                event = GITHUB_REVIEW_EVENT
+                reason = "자동 리뷰는 정보 제공용 COMMENT만 제출하며 승인/수정 요청을 제출하지 않습니다."
             except ReviewError as error:
                 review = {"confidence": "low", "summary": "검증 가능한 리뷰 결과를 만들지 못했습니다.", "findings": []}
                 event = "COMMENT"
@@ -325,9 +311,9 @@ def main() -> int:
         if latest.get("head", {}).get("sha") != head_sha:
             raise ReviewError("The pull request changed during review; no review was posted.")
 
-        review_body = render_review(review, event, reason)
+        review_body = render_review(review, reason)
         print(
-            f"Submitting GitHub review event {event} with payload fields "
+            "Submitting GitHub review event COMMENT with payload fields "
             f"commit_id, body ({len(review_body)} chars), and event."
         )
         request_json(
@@ -337,13 +323,13 @@ def main() -> int:
             payload={
                 "commit_id": head_sha,
                 "body": review_body,
-                "event": event,
+                "event": GITHUB_REVIEW_EVENT,
             },
         )
     except ReviewError as error:
         print(str(error), file=sys.stderr)
         return 1
-    print(f"Submitted one Particle-1 {event} review for commit {head_sha}.")
+    print(f"Submitted one Particle-1 COMMENT review for commit {head_sha}.")
     return 0
 
 
