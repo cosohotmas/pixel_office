@@ -12,4 +12,4 @@ def synthetic_review_marker() -> str:
     """Return a harmless marker so the merged review workflow runs again.
     병합된 리뷰 workflow를 다시 실행하기 위한 무해한 marker를 반환합니다.
     """
-    return "slack-direct-review"
+    return "slack-direct-review-v2"
