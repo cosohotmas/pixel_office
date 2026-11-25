@@ -4,6 +4,11 @@
 
 ## Mermaid 선 표현 원칙
 
+### Chat rendering rule / 채팅창 렌더링 규칙
+
+In the chat window, Mermaid must be rendered as a visible diagram. A fenced `mermaid` source block by itself is not a displayed diagram. If the chat renderer is unavailable, disclose the limitation, keep the Mermaid source available, and add a plain-language description of the visual relationships.
+채팅창에서는 Mermaid를 보이는 다이어그램으로 렌더링해야 합니다. `mermaid` fenced 소스 블록만 보여주는 것은 다이어그램 표시가 아닙니다. 채팅 렌더러를 사용할 수 없으면 그 한계를 밝히고 Mermaid 소스를 제공하며 시각적 관계를 쉬운 말로 설명합니다.
+
 Use solid arrows only for relations with observed, end-to-end evidence. Use dashed arrows for planned or unverified relations. Show undecided relations as an explicit question, not as an approved plan. Include a legend in every target-architecture diagram and label each edge with its actual operation. A documented intention is not proof of an active integration.
 관찰된 종단 근거가 있는 관계만 실선으로 표시합니다. 계획 또는 미검증 관계는 점선으로 표시하고, 미결정 관계는 승인된 계획선이 아니라 명시적 질문으로 나타냅니다. 목표 아키텍처 그림에는 범례를 넣고 각 연결에 실제 동작을 표기합니다. 문서에 적힌 의도는 활성 연동의 증거가 아닙니다.
 

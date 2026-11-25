@@ -1,5 +1,16 @@
 # Pixel Office 운영 문서
 
+## Official project path / 공식 프로젝트 경로
+
+The official working directory is `/Users/aspirinirony/project/cosohotmas/project/pixel_office`.
+공식 작업 디렉터리는 `/Users/aspirinirony/project/cosohotmas/project/pixel_office`이다.
+
+The old parent repository is preserved at `/Users/aspirinirony/project/cosohotmas-legacy-20261125` and is not an active work location.
+이전 상위 저장소는 `/Users/aspirinirony/project/cosohotmas-legacy-20261125`에 보관되어 있으며 활성 작업 위치가 아니다.
+
+All new edits start from the official path on a `codex/` feature branch. The legacy archive is reference-only unless a separate recovery decision is made.
+새 수정은 모두 공식 경로의 `codex/` feature branch에서 시작한다. 별도 복구 결정이 없는 한 legacy 보관본은 참고용이다.
+
 이 폴더는 에이전트 사무실의 역할, 대화, 기록, 자동화 규칙을 설명합니다.
 
 ## 문서 읽는 순서
@@ -38,6 +49,9 @@ For each working role, use a table with explicit Who, What, Why, How, Goal, and 
 각 작업 역할은 Who·What·Why·How·Goal·소신 열이 명시된 표로 기록하고 모든 역할의 모든 칸을 채웁니다. 서술형·취합 요약으로 표를 대체하지 않습니다. 사실·가정·제안·질문을 구분하고, 실제 사용자인 커튼 뒤에게 취합 보고를 제출하며 역할 발언을 대신 만들지 않습니다.
 
 ## Mermaid report diagram review / Mermaid 보고 그림 검토
+
+Chat display rule: Mermaid in reports must appear as a rendered diagram in the chat window, not as source code alone. When rendering is unavailable, disclose the limitation and provide the source plus a plain-language diagram summary.
+채팅 표시 규칙: 보고서의 Mermaid는 채팅창에서 소스 코드만이 아니라 렌더링된 다이어그램으로 표시해야 합니다. 렌더링이 불가능하면 그 한계를 밝히고 소스와 쉬운 말의 다이어그램 요약을 함께 제공합니다.
 
 [2026-11-21 meeting](meetings/2026-11-21-mermaid-diagram-needs.md) reviews whether additional diagrams are needed beyond the recurring three. Its recommendations are pending Curtain's decision.
 [2026-11-21 회의록](meetings/2026-11-21-mermaid-diagram-needs.md)에서 상시 다이어그램 세 가지 외에 추가 그림이 필요한지 검토했습니다. 권고는 커튼 뒤 결정 대기입니다.

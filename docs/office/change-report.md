@@ -1,6 +1,24 @@
 # Mock Weather Wiring Change Report
 # Mock 날씨 연결 변경 보고서
 
+## Official path, legacy archive, and worktree alignment / 공식 경로·legacy·worktree 정렬
+
+| Path | Action | Purpose |
+|---|---|---|
+| `docs/office/README.md` | Edit / 수정 | Declare the official project path, legacy archive path, and feature-branch rule. / 공식 프로젝트 경로·legacy 보관 경로·feature branch 규칙을 명시 |
+| `docs/office/meetings/2026-11-26-next-implementation-scope-second-meeting.md` | Edit / 수정 | Record Curtain's adoption of Candidate A. / 커튼 뒤의 A안 채택을 기록 |
+| `CONVERSATION_LOG.md` | Edit / 수정 | Record the adopted documentation scope and its limits. / 채택된 문서 범위와 한계를 기록 |
+| `docs/office/change-report.md` | Edit / 수정 | Explain the documentation alignment and verification. / 문서 정렬과 검증을 설명 |
+
+Before: the official path and legacy archive were known in the workspace but were not stated together in the office index and current scope record.
+이전: 공식 경로와 legacy 보관 위치는 작업공간에서 확인됐지만 사무실 문서 목차와 현재 범위 기록에 함께 명시되지 않았다.
+
+After: the office index identifies `/Users/aspirinirony/project/cosohotmas/project/pixel_office` as the only active working path, identifies `/Users/aspirinirony/project/cosohotmas-legacy-20261125` as reference-only, and records the adopted Candidate A scope.
+이후: 사무실 목차는 `/Users/aspirinirony/project/cosohotmas/project/pixel_office`를 유일한 활성 작업 경로로, `/Users/aspirinirony/project/cosohotmas-legacy-20261125`를 참고용으로 명시하고 A안 채택 범위를 기록한다.
+
+Verification: inspect the official path, legacy path, branch, remote, and worktree facts; run `git diff --check`; verify document links and scan the diff for private paths or secrets. No code, workflow, external service, commit, Push, Pull Request, or merge is changed by this documentation update.
+검증: 공식 경로·legacy 경로·브랜치·원격·worktree 사실을 확인하고 `git diff --check`를 실행하며 문서 링크와 diff의 개인 경로·비밀값을 검사한다. 이 문서 변경으로 코드·workflow·외부 서비스·커밋·Push·Pull Request·Merge는 변경하지 않는다.
+
 ## Trusted synthetic review verification / Trusted 합성 리뷰 검증
 
 | Path | Action | Purpose |
