@@ -13,10 +13,11 @@ import urllib.request
 DEFAULT_MODELS = (
     "particle-ai/particle-1:free",
     "recursive/flint-v1.0:free",
-    "dots-studio/dots-3-note-preview:free",
     "nvidia/nemotron-3.5-lightning:free",
     "google/gemma-4-26b-a4b-it:free",
     "google/gemma-4-31b-it:free",
+    "inclusionai/ling-3.2-flash:free",
+    "baidu/ernie-5.5-flash-preview:free",
     "openrouter/free",
 )
 GITHUB_REVIEW_EVENT = "COMMENT"
@@ -172,7 +173,7 @@ def ask_particle(api_key: str, title: str, diff: str, model: str) -> dict:
         "model": model,
         "max_tokens": 2_000,
         "temperature": 0.1,
-        "provider": {"allow_fallbacks": False},
+        "provider": {"allow_fallbacks": True},
         "messages": [
             {
                 "role": "system",
@@ -217,8 +218,31 @@ def ask_particle(api_key: str, title: str, diff: str, model: str) -> dict:
         raw = result["choices"][0]["message"]["content"]
     except (KeyError, IndexError, TypeError):
         raise ReviewError("Particle-1 returned no review content.") from None
+    if isinstance(raw, list):
+        raw = "".join(
+            item.get("text", "") for item in raw if isinstance(item, dict) and isinstance(item.get("text"), str)
+        )
     if not isinstance(raw, str) or not raw.strip() or len(raw) > MAX_REVIEW_CHARS:
         raise ReviewError("Particle-1 returned empty or oversized review content.")
+    raw = raw.strip()
+    if raw.startswith("```"):
+        raw = raw.split("\n", 1)[1] if "\n" in raw else raw
+        raw = raw.rsplit("```", 1)[0].strip()
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        decoder = json.JSONDecoder()
+        for start, char in enumerate(raw):
+            if char != "{":
+                continue
+            try:
+                parsed, end = decoder.raw_decode(raw[start:])
+                raw = json.dumps(parsed, ensure_ascii=False)
+                break
+            except json.JSONDecodeError:
+                continue
+        else:
+            raise ReviewError("Particle-1 did not return valid JSON.") from None
     return parse_review(raw, changed_paths(diff))
 
 
@@ -314,6 +338,7 @@ def main() -> int:
         if not paths:
             raise ReviewError("No changed file paths were found in the diff.")
 
+        selected_model = None
         if not api_key:
             review = {"confidence": "low", "summary": "모델 API 키가 없어 코드 리뷰를 완료하지 못했습니다.", "findings": []}
             event = "COMMENT"
@@ -325,11 +350,12 @@ def main() -> int:
                 for model in configured_models():
                     try:
                         review = ask_particle(api_key, pull.get("title", ""), diff, model)
+                        selected_model = model
                         print(f"Particle review succeeded with configured model {model}.")
                         break
                     except ReviewError as error:
                         failures.append(f"{model}: {error}")
-                        print(f"Particle review model failed; trying the next configured model: {model}")
+                        print(f"Particle review model failed: {model}: {error}; trying the next configured model.")
                 if review is None:
                     raise ReviewError("; ".join(failures))
                 event = GITHUB_REVIEW_EVENT
@@ -348,9 +374,16 @@ def main() -> int:
             "Submitting GitHub review event COMMENT with payload fields "
             f"commit_id, body ({len(review_body)} chars), and event."
         )
-        if slack_webhook_url:
+        if slack_webhook_url and selected_model and review["summary"] != "검증 가능한 리뷰 결과를 만들지 못했습니다.":
             try:
-                send_slack_notification(slack_webhook_url, repository, number, "particle-ai/particle-1", review_body, slack_channel)
+                send_slack_notification(
+                    slack_webhook_url,
+                    repository,
+                    number,
+                    selected_model or "unavailable",
+                    review_body,
+                    slack_channel,
+                )
             except (ReviewError, urllib.error.URLError) as error:
                 print(f"Slack AI review notification failed; continuing with GitHub COMMENT: {error}")
         request_json(
