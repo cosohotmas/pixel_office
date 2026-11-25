@@ -10,6 +10,8 @@ Report the rollout stage, evidence, current task state and next rollout action a
 
 Show the complete rollout, current task detail with its node highlighted, and target product architecture as Mermaid diagrams in every task-start, progress and final report, following `AGENTS.md`.
 <!-- `AGENTS.md`에 따라 매 작업 시작·진행·최종 보고에 전체 도입 흐름, 현재 단계를 강조한 세부 흐름, 목표 제품 아키텍처 Mermaid를 표시합니다. -->
+Render those Mermaid blocks as visible diagrams in the chat window; do not present Mermaid source code alone as the diagram. If rendering is unavailable, explain the limitation and include both the source and a plain-language visual summary.
+<!-- Mermaid 블록은 채팅창에서 보이는 다이어그램으로 렌더링하며 Mermaid 소스 코드만 다이어그램으로 제시하지 않습니다. 렌더링이 불가능하면 그 한계를 설명하고 소스와 쉬운 말의 시각적 요약을 함께 제공합니다. -->
 
 In every task-start, progress, and final report, use the fixed three-column Markdown handoff table required by `AGENTS.md`: `순서`, `커튼 뒤가 할 일`, `제가 할 일`. Number steps in execution order, show each step's state, explain both owners' actions in beginner-friendly language, identify the verifier and evidence, and name the next actor after the table. Write `없음(이 단계에서는 불필요)` when an owner has no action. Ask Curtain only for user-side access, judgment, or authorization; continue all other authorized work yourself.
 <!-- 모든 작업 시작·진행·최종 보고에서 `AGENTS.md`의 고정 3열 인계 표를 사용합니다: `순서`, `커튼 뒤가 할 일`, `제가 할 일`. 단계를 실행 순서로 번호 매기고 상태를 표시하며, 두 담당자의 할 일을 쉬운 말로 설명하고 확인자·근거를 적은 뒤 표 아래에 다음 실행자를 밝힙니다. 담당자의 할 일이 없으면 `없음(이 단계에서는 불필요)`이라고 씁니다. 사용자 접근·판단·승인만 커튼 뒤에게 요청하고 나머지 허가된 작업은 계속 수행합니다. -->

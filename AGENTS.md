@@ -30,6 +30,8 @@
   <!-- 보고 형식은 `docs/office/workflow.md`를 따르며 다음 작업 보고가 실행·공개 승인은 아닙니다. -->
 - In every task-start, progress, and final report, show three Mermaid diagrams: the complete office rollout, the current task's detailed steps with the current node highlighted, and the target product architecture. Keep evidence and completion status accurate in each diagram.
   <!-- 모든 작업 시작·진행·최종 보고에 전체 사무실 도입 흐름, 현재 세부 단계를 강조한 작업 흐름, 목표 제품 아키텍처 Mermaid를 표시합니다. 다이어그램마다 근거와 완료 상태를 정확히 반영합니다. -->
+- In the chat window, render Mermaid as a visible diagram rather than presenting only the Mermaid source code. If the chat cannot render Mermaid, state that limitation and provide the source together with a plain-language diagram summary; never describe a code block alone as a displayed diagram.
+  <!-- 채팅창에서는 Mermaid 소스 코드만 보여주지 말고 보이는 다이어그램으로 렌더링합니다. 채팅창이 Mermaid를 렌더링하지 못하면 그 한계를 밝히고 소스와 쉬운 말의 다이어그램 설명을 함께 제공하며, 코드 블록만 표시한 것을 다이어그램 표시로 설명하지 않습니다. -->
 
 ## Numbered Work Handoffs
 

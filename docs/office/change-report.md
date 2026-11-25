@@ -1,6 +1,42 @@
 # Mock Weather Wiring Change Report
 # Mock 날씨 연결 변경 보고서
 
+## Official path, legacy archive, and worktree alignment / 공식 경로·legacy·worktree 정렬
+
+| Path | Action | Purpose |
+|---|---|---|
+| `docs/office/README.md` | Edit / 수정 | Declare the official project path, legacy archive path, and feature-branch rule. / 공식 프로젝트 경로·legacy 보관 경로·feature branch 규칙을 명시 |
+| `docs/office/meetings/2026-11-26-next-implementation-scope-second-meeting.md` | Edit / 수정 | Record Curtain's adoption of Candidate A. / 커튼 뒤의 A안 채택을 기록 |
+| `CONVERSATION_LOG.md` | Edit / 수정 | Record the adopted documentation scope and its limits. / 채택된 문서 범위와 한계를 기록 |
+| `docs/office/change-report.md` | Edit / 수정 | Explain the documentation alignment and verification. / 문서 정렬과 검증을 설명 |
+
+Before: the official path and legacy archive were known in the workspace but were not stated together in the office index and current scope record.
+이전: 공식 경로와 legacy 보관 위치는 작업공간에서 확인됐지만 사무실 문서 목차와 현재 범위 기록에 함께 명시되지 않았다.
+
+After: the office index identifies `/Users/aspirinirony/project/cosohotmas/project/pixel_office` as the only active working path, identifies `/Users/aspirinirony/project/cosohotmas-legacy-20261125` as reference-only, and records the adopted Candidate A scope.
+이후: 사무실 목차는 `/Users/aspirinirony/project/cosohotmas/project/pixel_office`를 유일한 활성 작업 경로로, `/Users/aspirinirony/project/cosohotmas-legacy-20261125`를 참고용으로 명시하고 A안 채택 범위를 기록한다.
+
+Verification: inspect the official path, legacy path, branch, remote, and worktree facts; run `git diff --check`; verify document links and scan the diff for private paths or secrets. No code, workflow, external service, commit, Push, Pull Request, or merge is changed by this documentation update.
+검증: 공식 경로·legacy 경로·브랜치·원격·worktree 사실을 확인하고 `git diff --check`를 실행하며 문서 링크와 diff의 개인 경로·비밀값을 검사한다. 이 문서 변경으로 코드·workflow·외부 서비스·커밋·Push·Pull Request·Merge는 변경하지 않는다.
+
+## Missing meeting record reconciliation / 누락 회의록 보완
+
+| Path | Action | Purpose |
+|---|---|---|
+| `docs/office/meetings/2026-11-25-official-path-git-connection-meeting.md` | Create / 생성 | Restore the official-path and legacy-archive meeting record from observed facts and approvals. / 관찰 사실과 승인 기록을 바탕으로 공식 경로·legacy 보관 회의록 복원 |
+| `docs/office/meetings/2026-11-26-mermaid-chat-rendering-rule-meeting.md` | Create / 생성 | Record the Mermaid chat-rendering request, adoption, and verification boundary. / Mermaid 채팅 렌더링 요청·채택·검증 경계 기록 |
+| `docs/office/README.md` | Edit / 수정 | Link both meeting records from their owning documentation sections. / 두 회의록을 담당 문서 구역에서 연결 |
+| `docs/office/change-report.md` | Edit / 수정 | Explain the reconciliation scope and evidence limits. / 보완 범위와 근거 한계 설명 |
+
+Before: the directory contained the recent scope meetings, but two observed formal decisions had no dedicated meeting record in the official path.
+이전: 디렉터리에 최근 범위 회의는 있었지만 관찰된 공식 결정 두 건에 대한 전용 회의록이 공식 경로에 없었다.
+
+After: the official-path/Git connection meeting and the Mermaid chat-rendering rule meeting are recorded with facts, role opinions, decisions, open questions, Mermaid diagrams, and verification notes. No new decision was invented; the records distinguish user decisions from assistant recommendations.
+이후: 공식 경로·Git 연결 회의와 Mermaid 채팅 렌더링 규칙 회의를 사실·역할 의견·결정·미결정 질문·Mermaid·검증 기록과 함께 남겼다. 새 결정을 만들지 않았으며 사용자 결정과 어시스턴트 권고를 구분했다.
+
+Verification: compare both records with the conversation approvals and current repository state; verify owning-document links and `git diff --check`. No application code, workflow, external service, or secret was changed.
+검증: 두 회의록을 대화 승인과 현재 저장소 상태에 대조하고 담당 문서 링크와 `git diff --check`를 확인한다. 애플리케이션 코드·workflow·외부 서비스·비밀값은 변경하지 않는다.
+
 ## Trusted synthetic review verification / Trusted 합성 리뷰 검증
 
 | Path | Action | Purpose |
