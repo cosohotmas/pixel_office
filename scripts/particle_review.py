@@ -242,10 +242,34 @@ def render_review(review: dict, reason: str | None = None) -> str:
     return "\n".join(parts)[:MAX_REVIEW_CHARS]
 
 
+def send_slack_notification(webhook_url: str, repository: str, number: str, reviewer: str, body: str, channel: str) -> None:
+    """Send the AI review to the configured Slack channel without exposing the webhook.
+    webhook을 노출하지 않고 설정된 Slack 채널로 AI 리뷰를 보냅니다.
+    """
+    message = (
+        f"*Particle-1 AI review* — {repository}#{number}\n"
+        f"Model: `{reviewer}`\n"
+        f"https://github.com/{repository}/pull/{number}\n\n"
+        f"{body[:6_000]}"
+    )
+    request = urllib.request.Request(
+        webhook_url,
+        data=json.dumps({"channel": channel, "text": message}).encode("utf-8"),
+        headers={"Content-Type": "application/json", "User-Agent": "particle-automated-review"},
+        method="POST",
+    )
+    with urllib.request.urlopen(request, timeout=30) as response:
+        if not 200 <= response.status < 300:
+            raise ReviewError(f"Slack webhook returned HTTP {response.status}")
+        print(f"Slack AI review notification returned HTTP {response.status}.")
+
+
 def main() -> int:
     """Review the current PR commit and submit exactly one fail-closed review."""
     token = os.environ.get("GITHUB_TOKEN", "")
     api_key = os.environ.get("OPENROUTER_API_KEY", "")
+    slack_webhook_url = os.environ.get("SLACK_WEBHOOK_URL", "")
+    slack_channel = os.environ.get("SLACK_CHANNEL_NAME", "#pixel_office")
     repository = os.environ.get("GITHUB_REPOSITORY", "")
     number = os.environ.get("PULL_REQUEST_NUMBER", "")
     if not token or not number.isdigit() or "/" not in repository:
@@ -316,6 +340,11 @@ def main() -> int:
             "Submitting GitHub review event COMMENT with payload fields "
             f"commit_id, body ({len(review_body)} chars), and event."
         )
+        if slack_webhook_url:
+            try:
+                send_slack_notification(slack_webhook_url, repository, number, "particle-ai/particle-1", review_body, slack_channel)
+            except (ReviewError, urllib.error.URLError) as error:
+                print(f"Slack AI review notification failed; continuing with GitHub COMMENT: {error}")
         request_json(
             reviews_api,
             token,
