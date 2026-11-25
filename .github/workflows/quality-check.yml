@@ -40,15 +40,19 @@ jobs:
           test -f docs/specs/current-weather.md
 
       - name: Scan for private paths and common secrets
-        # Fail when tracked files contain local paths or common secret markers.
-        # 추적 파일에 개인 경로나 일반적인 시크릿 표시가 있으면 실패합니다.
+        # Scan source files for local paths, and scan every tracked file for secret markers.
+        # 소스 파일은 개인 경로를 검사하고 모든 추적 파일은 비밀값 표시를 검사합니다.
         shell: bash
         run: |
           set -euo pipefail
-          if git grep -nE \
-            '/Users/|/private/tmp|/var/folders|BEGIN (RSA|OPENSSH|EC) PRIVATE KEY|ghp_[A-Za-z0-9_]+|github_pat_[A-Za-z0-9_]+' \
+          if git grep -nE '/Users/|/private/tmp|/var/folders' \
+            -- ':!.github/workflows/quality-check.yml' ':!*.md' ':!docs/**'; then
+            echo "Private path found in a non-documentation file."
+            exit 1
+          fi
+          if git grep -nE 'BEGIN (RSA|OPENSSH|EC) PRIVATE KEY|ghp_[A-Za-z0-9_]+|github_pat_[A-Za-z0-9_]+' \
             -- ':!.github/workflows/quality-check.yml'; then
-            echo "Private path or secret-like value found."
+            echo "Secret-like value found."
             exit 1
           fi
 

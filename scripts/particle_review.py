@@ -25,6 +25,8 @@ MAX_REVIEW_CHARS = 16_000
 MAX_FINDINGS = 20
 API_VERSION = "2022-11-28"
 MARKER = "<!-- particle-1-synthetic-review -->"
+TRANSIENT_GITHUB_STATUS_CODES = {429, 500, 502, 503, 504}
+GITHUB_REQUEST_ATTEMPTS = 3
 SEVERITIES = {"critical", "high", "medium", "low"}
 CONFIDENCES = {"high", "medium", "low"}
 
@@ -53,7 +55,7 @@ def github_error_summary(error: urllib.error.HTTPError) -> str:
 
 
 def request_json(url: str, token: str, *, method: str = "GET", payload: dict | None = None):
-    """Send one authenticated GitHub API request and return its JSON response."""
+    """Send one authenticated GitHub API request with bounded transient retries."""
     headers = {
         "Accept": "application/vnd.github+json",
         "Authorization": f"Bearer {token}",
@@ -64,14 +66,21 @@ def request_json(url: str, token: str, *, method: str = "GET", payload: dict | N
     if payload is not None:
         headers["Content-Type"] = "application/json"
         data = json.dumps(payload).encode("utf-8")
-    request = urllib.request.Request(url, data=data, headers=headers, method=method)
-    try:
-        with urllib.request.urlopen(request, timeout=30) as response:
-            return json.loads(response.read().decode("utf-8"))
-    except urllib.error.HTTPError as error:
-        raise ReviewError(f"GitHub API returned HTTP {error.code}: {github_error_summary(error)}") from None
-    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError):
-        raise ReviewError("GitHub API request failed or returned invalid JSON.") from None
+    for attempt in range(GITHUB_REQUEST_ATTEMPTS):
+        request = urllib.request.Request(url, data=data, headers=headers, method=method)
+        try:
+            with urllib.request.urlopen(request, timeout=30) as response:
+                return json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as error:
+            if error.code in TRANSIENT_GITHUB_STATUS_CODES and attempt < GITHUB_REQUEST_ATTEMPTS - 1:
+                continue
+            raise ReviewError(f"GitHub API returned HTTP {error.code}: {github_error_summary(error)}") from None
+        except (urllib.error.URLError, TimeoutError):
+            if attempt < GITHUB_REQUEST_ATTEMPTS - 1:
+                continue
+            raise ReviewError("GitHub API request failed.") from None
+        except json.JSONDecodeError:
+            raise ReviewError("GitHub API returned invalid JSON.") from None
 
 
 def get_diff(url: str, token: str) -> str:
