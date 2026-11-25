@@ -1,6 +1,20 @@
 # Mock Weather Wiring Change Report
 # Mock 날씨 연결 변경 보고서
 
+## Trusted synthetic review verification / Trusted 합성 리뷰 검증
+
+| Path | Action | Purpose |
+|---|---|---|
+| `.github/workflows/particle-review-synthetic.yml` | Create / 생성 | Provide a manually confirmed trusted workflow that tests a synthetic model failover and optional Slack receipt without running PR code. / PR 코드를 실행하지 않고 합성 모델 failover와 선택적 Slack 수신을 시험하는 수동 확인 trusted workflow 제공 |
+| `scripts/particle_review_synthetic.py` | Create / 생성 | Call the trusted review parser against a bounded synthetic diff, record model failures, and send one bounded Slack result only after a successful model review. / 제한된 합성 diff로 trusted 리뷰 파서를 호출하고 모델 실패를 기록하며 모델 리뷰 성공 후에만 제한된 Slack 결과 하나를 전송 |
+| `docs/office/change-report.md` | Edit / 수정 | Record the purpose, boundaries and local checks. / 목적·경계·로컬 검증 기록 |
+
+Before: the PR review workflow checked out `main`, so a PR branch's changed failover code could not be proven before merge. After: a `workflow_dispatch` path is prepared for trusted `main`, requires an exact confirmation string, uses only a synthetic diff, never submits a GitHub review, and sends Slack only after a model succeeds. Implementation is local and not yet pushed.
+이전: PR 리뷰 workflow가 `main`을 checkout하여 머지 전에 PR 브랜치의 failover 변경을 입증할 수 없었습니다. 이후: trusted `main`에서 실행되는 `workflow_dispatch` 경로를 준비하고 정확한 확인 문자열을 요구하며 합성 diff만 사용하고 GitHub 리뷰를 제출하지 않으며 모델 성공 후에만 Slack을 전송합니다. 구현은 로컬에만 있고 아직 Push하지 않았습니다.
+
+Verification: Python syntax compilation and `git diff --check` passed. The confirmation gate was not used to call a model or send Slack. No secret value was read or printed, and no external service was changed.
+검증: Python 문법 컴파일과 `git diff --check`를 통과했습니다. 확인 게이트를 사용해 모델을 호출하거나 Slack을 전송하지 않았습니다. 비밀값은 읽거나 출력하지 않았고 외부 서비스도 변경하지 않았습니다.
+
 ## Beginner-friendly user guidance / 초보자용 사용자 안내
 
 | Path | Action | Purpose |

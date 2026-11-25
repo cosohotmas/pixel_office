@@ -1,0 +1,40 @@
+name: Particle synthetic failover and Slack check
+
+# This workflow is manually started from a trusted branch.
+# 이 workflow는 trusted 브랜치에서 수동으로 시작합니다.
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Type SEND_SYNTHETIC_SLACK_TEST to allow one synthetic Slack message
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-check:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out trusted main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run synthetic failover and Slack check
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_MODELS: particle-ai/particle-1:free,recursive/flint-v1.0:free,nvidia/nemotron-3.5-lightning:free,google/gemma-4-26b-a4b-it:free,google/gemma-4-31b-it:free,inclusionai/ling-3.2-flash:free,baidu/ernie-5.5-flash-preview:free,openrouter/free
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_CHANNEL_NAME: "#pixel_office"
+          SYNTHETIC_CONFIRMATION: ${{ inputs.confirmation }}
+        working-directory: .
+        run: python scripts/particle_review_synthetic.py
