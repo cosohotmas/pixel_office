@@ -12,6 +12,15 @@ import urllib.request
 
 MAX_DIFF_BYTES = 120_000
 LOCK_SUFFIXES = (".lock", "package-lock.json", "pnpm-lock.yaml", "yarn.lock")
+DEFAULT_OPENROUTER_MODELS = (
+    "particle-ai/particle-1:free",
+    "recursive/flint-v1.0:free",
+    "dots-studio/dots-3-note-preview:free",
+    "nvidia/nemotron-3.5-lightning:free",
+    "google/gemma-4-26b-a4b-it:free",
+    "google/gemma-4-31b-it:free",
+    "openrouter/free",
+)
 
 
 def request_json(url: str, *, token: str | None = None, method: str = "GET", body: object | None = None) -> object:
@@ -88,7 +97,10 @@ def openrouter_model_list() -> list[str]:
     models = [item.strip() for item in configured.split(",") if item.strip()]
     if models:
         return models
-    return [os.getenv("OPENROUTER_MODEL", "particle-ai/particle-1:free")]
+    configured_single = os.getenv("OPENROUTER_MODEL", "")
+    if configured_single:
+        return [configured_single]
+    return list(DEFAULT_OPENROUTER_MODELS)
 
 
 def review_with_gemini(diff: str, api_key: str, model: str) -> str:
@@ -115,8 +127,8 @@ def review_with_gemini(diff: str, api_key: str, model: str) -> str:
 
 
 def send_slack_notification(webhook_url: str, repository: str, pull_number: str, reviewer: str, review: str, pr_url: str, channel_name: str) -> None:
-    """Send the completed GitHub review result to the approved Slack channel.
-    완료된 GitHub 리뷰 결과를 승인된 Slack 채널로 보냅니다.
+    """Send the AI review directly to the approved Slack channel.
+    AI 리뷰를 승인된 Slack 채널로 직접 보냅니다.
     """
     message = (
         f"*Particle-1 AI review* — {repository}#{pull_number}\n"
@@ -134,6 +146,7 @@ def send_slack_notification(webhook_url: str, repository: str, pull_number: str,
     with urllib.request.urlopen(request, timeout=30) as response:
         if response.status < 200 or response.status >= 300:
             raise RuntimeError(f"Slack webhook returned HTTP {response.status}")
+        print(f"Slack AI review notification returned HTTP {response.status}.")
 
 
 def existing_ai_review(pr_url: str, token: str, commit_sha: str) -> tuple[str, str] | None:
@@ -151,8 +164,8 @@ def existing_ai_review(pr_url: str, token: str, commit_sha: str) -> tuple[str, s
 
 
 def main() -> int:
-    """Validate the PR, submit COMMENT, then notify Slack.
-    PR을 검증하고 COMMENT를 제출한 뒤 Slack에 알립니다.
+    """Validate the PR, notify Slack directly, then submit the GitHub COMMENT.
+    PR을 검증하고 Slack에 직접 알린 뒤 GitHub COMMENT를 제출합니다.
     """
     token = os.environ["GITHUB_TOKEN"]
     repository = os.environ["GITHUB_REPOSITORY"]
@@ -199,13 +212,16 @@ def main() -> int:
         print(f"primary reviewer failed; using Gemini fallback: {primary_error}")
         review = review_with_gemini(diff, gemini_key, model)
         reviewer = model + " (fallback)"
+    try:
+        send_slack_notification(slack_webhook_url, repository, pull_number, reviewer, review, f"https://github.com/{repository}/pull/{pull_number}", slack_channel_name)
+    except (RuntimeError, urllib.error.URLError) as slack_error:
+        print(f"Slack AI review notification failed; continuing with GitHub review: {slack_error}")
     request_json(
         pr_url + "/reviews",
         token=token,
         method="POST",
         body={"body": f"## AI review ({reviewer})\n\n{review}\n\n_Automatic approval is disabled._", "event": "COMMENT"},
     )
-    send_slack_notification(slack_webhook_url, repository, pull_number, reviewer, review, f"https://github.com/{repository}/pull/{pull_number}", slack_channel_name)
     return 0
 
 
