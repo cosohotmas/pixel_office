@@ -54,7 +54,14 @@ def github_error_summary(error: urllib.error.HTTPError) -> str:
     return "; ".join(parts)[:1_000] or "no structured error details"
 
 
-def request_json(url: str, token: str, *, method: str = "GET", payload: dict | None = None):
+def request_json(
+    url: str,
+    token: str,
+    *,
+    method: str = "GET",
+    payload: dict | None = None,
+    operation: str = "GitHub API request",
+):
     """Send one authenticated GitHub API request with bounded transient retries."""
     headers = {
         "Accept": "application/vnd.github+json",
@@ -74,13 +81,13 @@ def request_json(url: str, token: str, *, method: str = "GET", payload: dict | N
         except urllib.error.HTTPError as error:
             if error.code in TRANSIENT_GITHUB_STATUS_CODES and attempt < GITHUB_REQUEST_ATTEMPTS - 1:
                 continue
-            raise ReviewError(f"GitHub API returned HTTP {error.code}: {github_error_summary(error)}") from None
+            raise ReviewError(f"{operation} failed: GitHub API returned HTTP {error.code}: {github_error_summary(error)}") from None
         except (urllib.error.URLError, TimeoutError):
             if attempt < GITHUB_REQUEST_ATTEMPTS - 1:
                 continue
-            raise ReviewError("GitHub API request failed.") from None
+            raise ReviewError(f"{operation} failed: GitHub API request failed.") from None
         except json.JSONDecodeError:
-            raise ReviewError("GitHub API returned invalid JSON.") from None
+            raise ReviewError(f"{operation} failed: GitHub API returned invalid JSON.") from None
 
 
 def get_diff(url: str, token: str) -> str:
@@ -272,7 +279,7 @@ def main() -> int:
     api = f"https://api.github.com/repos/{repository}/pulls/{number}"
     reviews_api = f"https://api.github.com/repos/{repository}/pulls/{number}/reviews"
     try:
-        pull = request_json(api, token)
+        pull = request_json(api, token, operation="Pull request lookup")
         if pull.get("state") != "open":
             raise ReviewError("The pull request is not open.")
         if pull.get("base", {}).get("ref") != "main":
@@ -284,7 +291,7 @@ def main() -> int:
         if not head_sha:
             raise ReviewError("The pull request has no current commit SHA.")
 
-        existing = request_json(f"{reviews_api}?per_page=100", token)
+        existing = request_json(f"{reviews_api}?per_page=100", token, operation="Existing review lookup")
         if any(
             (item.get("user") or {}).get("login") == "github-actions[bot]"
             and item.get("commit_id") == head_sha
@@ -324,7 +331,7 @@ def main() -> int:
                 event = "COMMENT"
                 reason = f"{error} 자동 승인은 제출하지 않았습니다."
 
-        latest = request_json(api, token)
+        latest = request_json(api, token, operation="Latest pull request SHA lookup")
         if latest.get("head", {}).get("sha") != head_sha:
             raise ReviewError("The pull request changed during review; no review was posted.")
 
@@ -337,6 +344,7 @@ def main() -> int:
             reviews_api,
             token,
             method="POST",
+            operation="Review submission",
             payload={
                 "commit_id": head_sha,
                 "body": review_body,
