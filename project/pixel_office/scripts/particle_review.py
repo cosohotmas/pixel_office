@@ -12,6 +12,7 @@ import urllib.request
 
 MAX_DIFF_BYTES = 120_000
 LOCK_SUFFIXES = (".lock", "package-lock.json", "pnpm-lock.yaml", "yarn.lock")
+GITHUB_REVIEW_EVENT = "COMMENT"
 DEFAULT_OPENROUTER_MODELS = (
     "particle-ai/particle-1:free",
     "recursive/flint-v1.0:free",
@@ -163,6 +164,21 @@ def existing_ai_review(pr_url: str, token: str, commit_sha: str) -> tuple[str, s
     return None
 
 
+def submit_github_comment(pr_url: str, token: str, reviewer: str, review: str) -> None:
+    """Submit an informational COMMENT; this path never approves or blocks a PR.
+    정보 제공용 COMMENT만 제출하며, 이 경로는 PR을 승인하거나 차단하지 않습니다.
+    """
+    request_json(
+        pr_url + "/reviews",
+        token=token,
+        method="POST",
+        body={
+            "body": f"## AI review ({reviewer})\n\n{review}\n\n_Automatic approval is disabled._",
+            "event": GITHUB_REVIEW_EVENT,
+        },
+    )
+
+
 def main() -> int:
     """Validate the PR, notify Slack directly, then submit the GitHub COMMENT.
     PR을 검증하고 Slack에 직접 알린 뒤 GitHub COMMENT를 제출합니다.
@@ -216,12 +232,7 @@ def main() -> int:
         send_slack_notification(slack_webhook_url, repository, pull_number, reviewer, review, f"https://github.com/{repository}/pull/{pull_number}", slack_channel_name)
     except (RuntimeError, urllib.error.URLError) as slack_error:
         print(f"Slack AI review notification failed; continuing with GitHub review: {slack_error}")
-    request_json(
-        pr_url + "/reviews",
-        token=token,
-        method="POST",
-        body={"body": f"## AI review ({reviewer})\n\n{review}\n\n_Automatic approval is disabled._", "event": "COMMENT"},
-    )
+    submit_github_comment(pr_url, token, reviewer, review)
     return 0
 
 
