@@ -11,6 +11,9 @@ The old parent repository is preserved at `/Users/aspirinirony/project/cosohotma
 All new edits start from the official path on a `codex/` feature branch. The legacy archive is reference-only unless a separate recovery decision is made.
 새 수정은 모두 공식 경로의 `codex/` feature branch에서 시작한다. 별도 복구 결정이 없는 한 legacy 보관본은 참고용이다.
 
+The [official path and Git connection meeting](meetings/2026-11-25-official-path-git-connection-meeting.md) records the path decision and archive boundary.
+[공식 경로·Git 연결 회의록](meetings/2026-11-25-official-path-git-connection-meeting.md)에 경로 결정과 보관 경계를 기록했다.
+
 이 폴더는 에이전트 사무실의 역할, 대화, 기록, 자동화 규칙을 설명합니다.
 
 ## 문서 읽는 순서
@@ -52,6 +55,9 @@ For each working role, use a table with explicit Who, What, Why, How, Goal, and 
 
 Chat display rule: Mermaid in reports must appear as a rendered diagram in the chat window, not as source code alone. When rendering is unavailable, disclose the limitation and provide the source plus a plain-language diagram summary.
 채팅 표시 규칙: 보고서의 Mermaid는 채팅창에서 소스 코드만이 아니라 렌더링된 다이어그램으로 표시해야 합니다. 렌더링이 불가능하면 그 한계를 밝히고 소스와 쉬운 말의 다이어그램 요약을 함께 제공합니다.
+
+The [Mermaid chat rendering rule meeting](meetings/2026-11-26-mermaid-chat-rendering-rule-meeting.md) records the user's request, adoption, and verification boundary.
+[Mermaid 채팅 렌더링 규칙 회의록](meetings/2026-11-26-mermaid-chat-rendering-rule-meeting.md)에 사용자의 요청·채택·검증 경계를 기록했다.
 
 [2026-11-21 meeting](meetings/2026-11-21-mermaid-diagram-needs.md) reviews whether additional diagrams are needed beyond the recurring three. Its recommendations are pending Curtain's decision.
 [2026-11-21 회의록](meetings/2026-11-21-mermaid-diagram-needs.md)에서 상시 다이어그램 세 가지 외에 추가 그림이 필요한지 검토했습니다. 권고는 커튼 뒤 결정 대기입니다.
