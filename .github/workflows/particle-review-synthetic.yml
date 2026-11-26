@@ -5,6 +5,14 @@ name: Particle synthetic failover and Slack check
 on:
   workflow_dispatch:
     inputs:
+      mode:
+        description: Choose the standard test or the two-candidate provider rejection test
+        required: true
+        default: standard
+        type: choice
+        options:
+          - standard
+          - provider-rejection
       confirmation:
         description: Type SEND_SYNTHETIC_SLACK_TEST to allow one synthetic Slack message
         required: true
@@ -32,7 +40,12 @@ jobs:
       - name: Run synthetic failover and Slack check
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          OPENROUTER_MODELS: particle-ai/particle-1:free,recursive/flint-v1.0:free,nvidia/nemotron-3.5-lightning:free,google/gemma-4-26b-a4b-it:free,google/gemma-4-31b-it:free,inclusionai/ling-3.2-flash:free,baidu/ernie-5.5-flash-preview:free,openrouter/free
+          # The rejection test uses a fixed unknown model ID followed by a real model.
+          # 거절 시험은 고정된 미등록 모델 ID 다음에 실제 모델을 호출합니다.
+          OPENROUTER_MODELS: >-
+            ${{ inputs.mode == 'provider-rejection'
+                && 'pixel-office-failover-test/intentional-unknown-model,particle-ai/particle-1:free'
+                || 'particle-ai/particle-1:free,recursive/flint-v1.0:free,nvidia/nemotron-3.5-lightning:free,google/gemma-4-26b-a4b-it:free,google/gemma-4-31b-it:free,inclusionai/ling-3.2-flash:free,baidu/ernie-5.5-flash-preview:free,openrouter/free' }}
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           SLACK_CHANNEL_NAME: "#pixel_office"
           SYNTHETIC_CONFIRMATION: ${{ inputs.confirmation }}
