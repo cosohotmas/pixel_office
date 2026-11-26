@@ -1,0 +1,11 @@
+# Limit the build context to the files needed by the review tests.
+# 빌드 컨텍스트를 리뷰 테스트에 필요한 파일로 제한합니다.
+**
+!scripts/
+scripts/*
+!scripts/particle_review.py
+!backend/
+backend/*
+!backend/tests/
+backend/tests/*
+!backend/tests/test_particle_review_budget.py

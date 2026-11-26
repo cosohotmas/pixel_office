@@ -1,0 +1,16 @@
+# Match the Python version used by the review workflow.
+# 리뷰 워크플로와 같은 파이썬 버전을 사용합니다.
+FROM python:3.12-slim
+
+WORKDIR /workspace
+
+# Copy the review script and its offline regression tests.
+# 리뷰 스크립트와 오프라인 회귀 테스트를 복사합니다.
+COPY scripts/particle_review.py scripts/particle_review.py
+COPY backend/tests/test_particle_review_budget.py backend/tests/test_particle_review_budget.py
+
+USER 65534:65534
+
+# Run the checks without installing additional Python packages.
+# 추가 파이썬 패키지 설치 없이 검사를 실행합니다.
+CMD ["python", "-B", "-m", "unittest", "discover", "-s", "backend/tests", "-p", "test_particle_review_budget.py", "-v"]

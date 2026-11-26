@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+from contextlib import redirect_stdout
+
 import html
 import json
 import os
+import subprocess
 import sys
+import time
 import urllib.error
 import urllib.request
 
@@ -23,6 +27,11 @@ GITHUB_REVIEW_EVENT = "COMMENT"
 MAX_DIFF_BYTES = 48_000
 MAX_REVIEW_CHARS = 16_000
 MAX_FINDINGS = 20
+SCRIPT_BUDGET_SECONDS = 240
+SUBMISSION_RESERVE_SECONDS = 70
+MODEL_BUDGET_SECONDS = 120
+MODEL_ATTEMPT_SECONDS = 60
+MAX_MODEL_ATTEMPTS = 4
 API_VERSION = "2022-11-28"
 MARKER = "<!-- particle-1-synthetic-review -->"
 SEVERITIES = {"critical", "high", "medium", "low"}
@@ -31,6 +40,10 @@ CONFIDENCES = {"high", "medium", "low"}
 
 class ReviewError(Exception):
     """Represent a safe-to-report review failure."""
+
+    def __init__(self, message: str, category: str = "schema_error"):
+        super().__init__(message)
+        self.category = category
 
 
 def github_error_summary(error: urllib.error.HTTPError) -> str:
@@ -136,7 +149,7 @@ def parse_review(raw: str, paths: set[str]) -> dict:
     try:
         result = json.loads(raw)
     except json.JSONDecodeError:
-        raise ReviewError("Particle-1 did not return valid JSON.") from None
+        raise ReviewError("Particle-1 did not return valid JSON.", "json_error") from None
     if not isinstance(result, dict) or set(result) != {"confidence", "summary", "findings"}:
         raise ReviewError("Particle-1 returned an unexpected review structure.")
     confidence = result["confidence"]
@@ -174,10 +187,17 @@ def configured_models() -> list[str]:
     return models or list(DEFAULT_MODELS)
 
 
-def normalize_review_content(content: object) -> str:
+def normalize_review_content(content: object, metadata: dict | None = None) -> str:
     """Join bounded text parts, then unwrap one complete JSON fence.
     크기 제한 안에서 텍스트 조각을 합친 뒤 JSON을 감싼 코드 펜스 한 쌍을 벗깁니다.
     """
+    # Record the input shape and measure text before removing whitespace or fences.
+    # 공백과 코드 펜스를 제거하기 전에 입력 형태와 텍스트 길이를 기록합니다.
+    if metadata is None:
+        metadata = {}
+    metadata["response_form"] = (
+        "array" if isinstance(content, list) else "string" if isinstance(content, str) else "other"
+    )
     if isinstance(content, list):
         parts = []
         total_chars = 0
@@ -189,20 +209,26 @@ def normalize_review_content(content: object) -> str:
                 raise ReviewError("Model returned an invalid review text part.")
             total_chars += len(value)
             if total_chars > MAX_REVIEW_CHARS:
-                raise ReviewError("Model returned oversized review content.")
+                metadata["length_at_least"] = total_chars
+                raise ReviewError("Model returned oversized review content.", "oversized")
             parts.append(value)
         content = "".join(parts)
 
-    if not isinstance(content, str) or len(content) > MAX_REVIEW_CHARS:
+    if not isinstance(content, str):
         raise ReviewError("Model returned invalid or oversized review content.")
+    metadata["length"] = len(content)
+    if len(content) > MAX_REVIEW_CHARS:
+        raise ReviewError("Model returned invalid or oversized review content.", "oversized")
     content = content.strip()
+    metadata["code_fence"] = False
     opening, newline, remainder = content.partition("\n")
     if newline and opening.strip().lower() in ("```", "```json"):
         body, closing_break, closing = remainder.rpartition("\n")
         if closing_break and closing.strip() == "```":
+            metadata["code_fence"] = True
             content = body.strip()
     if not content:
-        raise ReviewError("Model returned empty review content.")
+        raise ReviewError("Model returned empty review content.", "empty_response")
     return content
 
 
@@ -248,18 +274,113 @@ def ask_particle(api_key: str, title: str, diff: str, model: str) -> dict:
         },
         method="POST",
     )
+    metadata = {}
     try:
-        with urllib.request.urlopen(request, timeout=90) as response:
-            result = json.loads(response.read().decode("utf-8"))
-    except urllib.error.HTTPError as error:
-        raise ReviewError(f"OpenRouter returned HTTP {error.code}.") from None
-    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError):
-        raise ReviewError("OpenRouter request failed or returned invalid JSON.") from None
+        try:
+            with urllib.request.urlopen(request, timeout=90) as response:
+                metadata["status_code"] = response.status
+                result = json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as error:
+            metadata["status_code"] = error.code
+            category = "rate_limit" if error.code == 429 else "http_error"
+            raise ReviewError(f"OpenRouter returned HTTP {error.code}.", category) from None
+        except (urllib.error.URLError, TimeoutError):
+            raise ReviewError("OpenRouter request failed or returned invalid JSON.", "network_error") from None
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            raise ReviewError("OpenRouter request failed or returned invalid JSON.", "provider_format_error") from None
+        try:
+            raw = result["choices"][0]["message"]["content"]
+        except (KeyError, IndexError, TypeError):
+            raise ReviewError("Particle-1 returned no review content.", "provider_format_error") from None
+        review = parse_review(normalize_review_content(raw, metadata), changed_paths(diff))
+    except ReviewError as error:
+        log_model_call("failed", metadata, model, error.category)
+        raise
+    log_model_call("success", metadata, model)
+    return review
+
+
+def log_model_call(status: str, metadata: dict, model: str, category: str | None = None) -> None:
+    # Write diagnostic fields only. Encode the configured model as a single log value.
+    # 진단 필드만 기록합니다. 설정된 모델 이름은 로그 값 하나로 인코딩합니다.
+    fields = {"model": json.dumps(model), "status": status, **metadata}
+    if category is not None:
+        fields["error_type"] = category
+    print("stage=model_call " + " ".join(f"{key}={value}" for key, value in fields.items()), flush=True)
+
+
+def run_model_attempt(api_key: str, title: str, diff: str, model: str, timeout: float) -> dict:
+    # Run the call in a child so the parent can stop a stalled response read.
+    # 부모 프로세스가 응답 읽기를 중단할 수 있도록 자식 프로세스에서 호출합니다.
     try:
-        raw = result["choices"][0]["message"]["content"]
-    except (KeyError, IndexError, TypeError):
-        raise ReviewError("Particle-1 returned no review content.") from None
-    return parse_review(normalize_review_content(raw), changed_paths(diff))
+        result = subprocess.run(
+            [sys.executable, os.path.abspath(__file__), "--model-worker"],
+            input=json.dumps([api_key, title, diff, model]),
+            stdout=subprocess.PIPE,
+            text=True,
+            timeout=timeout,
+            check=True,
+            env={key: value for key, value in os.environ.items() if key != "GITHUB_TOKEN"},
+        )
+    except subprocess.TimeoutExpired:
+        raise ReviewError("Model attempt timed out.", "attempt_timeout") from None
+    except (OSError, subprocess.CalledProcessError):
+        raise ReviewError("Model worker failed.", "worker_error") from None
+
+    try:
+        outcome = json.loads(result.stdout)
+        if "error" in outcome:
+            raise ReviewError(outcome["error"], outcome["category"])
+        return outcome["review"]
+    except (ValueError, TypeError, KeyError):
+        raise ReviewError("Model worker returned an invalid result.", "worker_error") from None
+
+
+def review_with_budget(api_key: str, title: str, diff: str, model_cutoff: float) -> dict:
+    models = configured_models()
+    failures = []
+    full_model_deadline = time.monotonic() + MODEL_BUDGET_SECONDS
+    deadline = min(full_model_deadline, model_cutoff)
+    # Check the remaining time before starting each model in the configured order.
+    # 설정된 순서대로 각 모델을 시작하기 전에 남은 시간을 확인합니다.
+    for attempt, model in enumerate(models[:MAX_MODEL_ATTEMPTS], start=1):
+        started = time.monotonic()
+        remaining = deadline - started
+        if remaining <= 0:
+            break
+        try:
+            review = run_model_attempt(api_key, title, diff, model, min(MODEL_ATTEMPT_SECONDS, remaining))
+        except ReviewError as error:
+            failures.append(f"{model}: {error}")
+            category = error.category
+        else:
+            category = "success" if time.monotonic() < deadline else "budget_timeout"
+        elapsed_ms = round((time.monotonic() - started) * 1000)
+        print(f"stage=model_attempt attempt={attempt} elapsed_ms={elapsed_ms} outcome={category}", flush=True)
+        if category == "success":
+            return review
+
+    if time.monotonic() >= deadline:
+        if model_cutoff <= full_model_deadline:
+            failures.append("Model review stopped to reserve time for GitHub submission.")
+        else:
+            failures.append("Model review time budget exhausted (120 seconds).")
+    elif len(models) > MAX_MODEL_ATTEMPTS:
+        failures.append("Model review attempt limit reached (4 calls).")
+    raise ReviewError("; ".join(failures))
+
+
+def model_worker() -> int:
+    # Keep diagnostics separate from the result read by the parent.
+    # 진단 로그를 부모 프로세스가 읽는 결과와 분리합니다.
+    args = json.load(sys.stdin)
+    try:
+        with redirect_stdout(sys.stderr):
+            outcome = {"review": ask_particle(*args)}
+    except ReviewError as error:
+        outcome = {"error": str(error), "category": error.category}
+    print(json.dumps(outcome))
+    return 0
 
 
 def render_review(review: dict, reason: str | None = None) -> str:
@@ -292,6 +413,9 @@ def render_review(review: dict, reason: str | None = None) -> str:
 
 def main() -> int:
     """Review the current PR commit and submit exactly one fail-closed review."""
+    # Set aside the last portion of the script budget before any GitHub reads.
+    # GitHub 조회 전에 스크립트 예산의 마지막 구간을 제출용으로 남깁니다.
+    model_cutoff = time.monotonic() + SCRIPT_BUDGET_SECONDS - SUBMISSION_RESERVE_SECONDS
     token = os.environ.get("GITHUB_TOKEN", "")
     api_key = os.environ.get("OPENROUTER_API_KEY", "")
     repository = os.environ.get("GITHUB_REPOSITORY", "")
@@ -340,22 +464,7 @@ def main() -> int:
             reason = "OPENROUTER_API_KEY가 설정되지 않았습니다. 자동 승인은 제출하지 않았습니다."
         else:
             try:
-                review = None
-                failures = []
-                for model in configured_models():
-                    try:
-                        review = ask_particle(api_key, pull.get("title", ""), diff, model)
-                        print(f"Particle review succeeded with configured model {model}.")
-                        break
-                    except ReviewError as error:
-                        failures.append(f"{model}: {error}")
-                        print(
-                            f"stage=model_call model={model} status=failed "
-                            f"error={error}",
-                            flush=True,
-                        )
-                if review is None:
-                    raise ReviewError("; ".join(failures))
+                review = review_with_budget(api_key, pull.get("title", ""), diff, model_cutoff)
                 event = GITHUB_REVIEW_EVENT
                 reason = "자동 리뷰는 정보 제공용 COMMENT만 제출하며 승인/수정 요청을 제출하지 않습니다."
             except ReviewError as error:
@@ -392,4 +501,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(model_worker() if sys.argv[1:] == ["--model-worker"] else main())
