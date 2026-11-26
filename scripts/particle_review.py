@@ -25,8 +25,6 @@ MAX_REVIEW_CHARS = 16_000
 MAX_FINDINGS = 20
 API_VERSION = "2022-11-28"
 MARKER = "<!-- particle-1-synthetic-review -->"
-TRANSIENT_GITHUB_STATUS_CODES = {429, 500, 502, 503, 504}
-GITHUB_REQUEST_ATTEMPTS = 3
 SEVERITIES = {"critical", "high", "medium", "low"}
 CONFIDENCES = {"high", "medium", "low"}
 
@@ -60,9 +58,9 @@ def request_json(
     *,
     method: str = "GET",
     payload: dict | None = None,
-    operation: str = "GitHub API request",
+    operation: str = "github_api",
 ):
-    """Send one authenticated GitHub API request with bounded transient retries."""
+    """Send one authenticated GitHub API request and return its JSON response."""
     headers = {
         "Accept": "application/vnd.github+json",
         "Authorization": f"Bearer {token}",
@@ -73,21 +71,17 @@ def request_json(
     if payload is not None:
         headers["Content-Type"] = "application/json"
         data = json.dumps(payload).encode("utf-8")
-    for attempt in range(GITHUB_REQUEST_ATTEMPTS):
-        request = urllib.request.Request(url, data=data, headers=headers, method=method)
-        try:
-            with urllib.request.urlopen(request, timeout=30) as response:
-                return json.loads(response.read().decode("utf-8"))
-        except urllib.error.HTTPError as error:
-            if error.code in TRANSIENT_GITHUB_STATUS_CODES and attempt < GITHUB_REQUEST_ATTEMPTS - 1:
-                continue
-            raise ReviewError(f"{operation} failed: GitHub API returned HTTP {error.code}: {github_error_summary(error)}") from None
-        except (urllib.error.URLError, TimeoutError):
-            if attempt < GITHUB_REQUEST_ATTEMPTS - 1:
-                continue
-            raise ReviewError(f"{operation} failed: GitHub API request failed.") from None
-        except json.JSONDecodeError:
-            raise ReviewError(f"{operation} failed: GitHub API returned invalid JSON.") from None
+    request = urllib.request.Request(url, data=data, headers=headers, method=method)
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            return json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as error:
+        raise ReviewError(
+            f"stage=github_api operation={operation} http_status={error.code} "
+            f"summary={github_error_summary(error)}"
+        ) from None
+    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError):
+        raise ReviewError(f"stage=github_api operation={operation} request_failed") from None
 
 
 def get_diff(url: str, token: str) -> str:
@@ -279,7 +273,7 @@ def main() -> int:
     api = f"https://api.github.com/repos/{repository}/pulls/{number}"
     reviews_api = f"https://api.github.com/repos/{repository}/pulls/{number}/reviews"
     try:
-        pull = request_json(api, token, operation="Pull request lookup")
+        pull = request_json(api, token, operation="pull_request_lookup")
         if pull.get("state") != "open":
             raise ReviewError("The pull request is not open.")
         if pull.get("base", {}).get("ref") != "main":
@@ -291,7 +285,11 @@ def main() -> int:
         if not head_sha:
             raise ReviewError("The pull request has no current commit SHA.")
 
-        existing = request_json(f"{reviews_api}?per_page=100", token, operation="Existing review lookup")
+        existing = request_json(
+            f"{reviews_api}?per_page=100",
+            token,
+            operation="existing_review_lookup",
+        )
         if any(
             (item.get("user") or {}).get("login") == "github-actions[bot]"
             and item.get("commit_id") == head_sha
@@ -321,7 +319,11 @@ def main() -> int:
                         break
                     except ReviewError as error:
                         failures.append(f"{model}: {error}")
-                        print(f"Particle review model failed; trying the next configured model: {model}")
+                        print(
+                            f"stage=model_call model={model} status=failed "
+                            f"error={error}",
+                            flush=True,
+                        )
                 if review is None:
                     raise ReviewError("; ".join(failures))
                 event = GITHUB_REVIEW_EVENT
@@ -331,20 +333,21 @@ def main() -> int:
                 event = "COMMENT"
                 reason = f"{error} 자동 승인은 제출하지 않았습니다."
 
-        latest = request_json(api, token, operation="Latest pull request SHA lookup")
+        latest = request_json(api, token, operation="latest_sha_lookup")
         if latest.get("head", {}).get("sha") != head_sha:
             raise ReviewError("The pull request changed during review; no review was posted.")
 
         review_body = render_review(review, reason)
         print(
-            "Submitting GitHub review event COMMENT with payload fields "
-            f"commit_id, body ({len(review_body)} chars), and event."
+            "stage=review_submission status=starting "
+            f"commit_id={head_sha} body_chars={len(review_body)}",
+            flush=True,
         )
         request_json(
             reviews_api,
             token,
             method="POST",
-            operation="Review submission",
+            operation="review_submission",
             payload={
                 "commit_id": head_sha,
                 "body": review_body,

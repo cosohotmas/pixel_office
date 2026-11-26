@@ -44,4 +44,5 @@ jobs:
           PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           OPENROUTER_MODELS: particle-ai/particle-1:free,recursive/flint-v1.0:free,dots-studio/dots-3-note-preview:free,nvidia/nemotron-3.5-lightning:free,google/gemma-4-26b-a4b-it:free,google/gemma-4-31b-it:free,openrouter/free
+          PYTHONUNBUFFERED: "1"
         run: python scripts/particle_review.py
