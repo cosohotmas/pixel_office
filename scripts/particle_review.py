@@ -174,6 +174,38 @@ def configured_models() -> list[str]:
     return models or list(DEFAULT_MODELS)
 
 
+def normalize_review_content(content: object) -> str:
+    """Join bounded text parts, then unwrap one complete JSON fence.
+    크기 제한 안에서 텍스트 조각을 합친 뒤 JSON을 감싼 코드 펜스 한 쌍을 벗깁니다.
+    """
+    if isinstance(content, list):
+        parts = []
+        total_chars = 0
+        for part in content:
+            if not isinstance(part, dict) or part.get("type") != "text":
+                raise ReviewError("Model returned a non-text review part.")
+            value = part.get("text")
+            if not isinstance(value, str):
+                raise ReviewError("Model returned an invalid review text part.")
+            total_chars += len(value)
+            if total_chars > MAX_REVIEW_CHARS:
+                raise ReviewError("Model returned oversized review content.")
+            parts.append(value)
+        content = "".join(parts)
+
+    if not isinstance(content, str) or len(content) > MAX_REVIEW_CHARS:
+        raise ReviewError("Model returned invalid or oversized review content.")
+    content = content.strip()
+    opening, newline, remainder = content.partition("\n")
+    if newline and opening.strip().lower() in ("```", "```json"):
+        body, closing_break, closing = remainder.rpartition("\n")
+        if closing_break and closing.strip() == "```":
+            content = body.strip()
+    if not content:
+        raise ReviewError("Model returned empty review content.")
+    return content
+
+
 def ask_particle(api_key: str, title: str, diff: str, model: str) -> dict:
     """Ask one model for bounded, structured findings about the diff.
     모델 하나에 diff의 제한된 구조화 리뷰를 요청합니다.
@@ -227,9 +259,7 @@ def ask_particle(api_key: str, title: str, diff: str, model: str) -> dict:
         raw = result["choices"][0]["message"]["content"]
     except (KeyError, IndexError, TypeError):
         raise ReviewError("Particle-1 returned no review content.") from None
-    if not isinstance(raw, str) or not raw.strip() or len(raw) > MAX_REVIEW_CHARS:
-        raise ReviewError("Particle-1 returned empty or oversized review content.")
-    return parse_review(raw, changed_paths(diff))
+    return parse_review(normalize_review_content(raw), changed_paths(diff))
 
 
 def render_review(review: dict, reason: str | None = None) -> str:
