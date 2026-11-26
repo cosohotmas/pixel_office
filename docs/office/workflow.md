@@ -20,6 +20,9 @@ GitHub의 PR과 Issue가 공식 기록입니다. Slack은 새 작업, 리뷰 요
 
 결정 기록: [1단계 이벤트 범위·완료 조건 회의](meetings/2026-11-21-stage1-events-and-completion-criteria-review.md) 및 [필수 리뷰 알림 범위 채택 기록](meetings/2026-11-22-review-notification-scope-adoption.md). 자동 리뷰 작성 주체·독립 리뷰어 확보 논의는 [미결정 회의록](meetings/2026-11-23-review-automation-and-independent-reviewer-meeting.md)을 참조하며, 실제 연동 시험 여부는 [진행 여부 회의 초안](meetings/2026-11-23-stage1-live-integration-test-go-no-go.md)에 기록했습니다. 시험 이벤트 계획과 Particle-1/수신 채널 제안은 [시험 계획 회의 초안](meetings/2026-11-23-particle-review-test-plan-meeting.md)에 기록했습니다. Particle-1은 자동 리뷰 모델 후보이며 사람 독립 리뷰어로 간주되지 않습니다. 실제 시험은 승인됐으나 GitHub CLI 인증 문제로 실행이 막혀 있습니다.
 
+The local review script uses a 240-second planning budget with 70 seconds reserved for GitHub submission. [Decision record](meetings/2026-11-27-review-submission-time-decision.md).
+로컬 리뷰 스크립트는 240초 계획 예산 중 70초를 GitHub 제출에 남깁니다. [결정 기록](meetings/2026-11-27-review-submission-time-decision.md).
+
 ### 2단계 — Slack 회의 → Supabase 회의 기록
 
 Slack 회의에서 나온 발언과 상태를 Supabase에 저장합니다. 단, 최종 결정은 GitHub 문서에 기록합니다. Slack→Supabase 자동 기록은 착수·검증 전까지 계획으로 표시합니다.
