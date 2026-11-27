@@ -123,19 +123,25 @@ export function App({ loadWeather = fetchWeather, locationStatus: initialLocatio
       <button onClick={() => setOverviewAttempt(value => value + 1)}>대표 지역 다시 불러오기</button>
     </section>
     <AreaSelector onSelect={area => void selectArea(area)} />
-    <section aria-label="선택 지역 결과" aria-busy={state.status === "loading"}>
-      <WeatherStatus state={state} />
-      {state.status === "result" && state.weather.status === "available" && <>
-        <WeatherCard weather={state.weather} /><SourceNotice weather={state.weather} />
-      </>}
+    <section aria-label="선택 지역 결과">
+      <div aria-busy={state.status === "loading"}>
+        <WeatherStatus state={state} />
+        {state.status === "result" && state.weather.status === "available" && <>
+          <WeatherCard weather={state.weather} /><SourceNotice weather={state.weather} />
+        </>}
+      </div>
       {retry.notice && <p role="note">{retry.notice}</p>}
       {/* Keep the countdown outside the live region so only readiness is announced.
           가능 상태만 알리도록 초읽기는 실시간 알림 영역 밖에 둡니다. */}
       {retry.retryable && retry.remaining > 0 && (
-        <p>{retry.area} 날씨 다시 시도까지 {retry.remaining}초</p>
+        <p>{retry.retriesExhausted
+          ? `이번 조회의 재시도를 모두 사용했습니다. ${retry.area} 날씨를 새로 조회하기까지 ${retry.remaining}초 남았습니다.`
+          : `${retry.area} 날씨 다시 시도까지 ${retry.remaining}초`}</p>
       )}
-      <p aria-live="polite">{retry.retryable && retry.remaining === 0
-        ? `${retry.area} 날씨를 다시 조회할 수 있습니다.`
+      {/* Keep the readiness announcement mounted outside the loading region.
+          재시도 가능 알림 영역을 로딩 영역 밖에 계속 유지합니다. */}
+      <p role="status" aria-live="polite" aria-atomic="true" aria-label="날씨 재조회 가능 안내">{retry.retryable && retry.remaining === 0
+        ? `${retry.area} 날씨를 ${retry.retriesExhausted ? "새로" : "다시"} 조회할 수 있습니다.`
         : null}</p>
       {retry.retryable && (
         <button disabled={retry.remaining > 0} onClick={() => void selectArea(retry.area)}>

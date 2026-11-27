@@ -132,5 +132,10 @@ export function useWeatherRequest(loader: WeatherLoader) {
       clearTimeout(timer!);if(active.current?.id===id){active.current=null;setRemaining(Math.max(0,Math.ceil((eligibleAt(snapshot.current,key)-clock.current())/1000)));}
     }
   };
-  return {state,area,notice,remaining,retryable,select,gatedLoad};
+  // Read the selected area's phase without changing the retry policy.
+  // 재시도 정책을 바꾸지 않고 선택된 지역의 상태를 읽습니다.
+  const retriesExhausted = retryable && snapshot.current.flows.some(
+    flow => flow.key.area === area && flow.phase === "exhausted",
+  );
+  return {state,area,notice,remaining,retryable,retriesExhausted,select,gatedLoad};
 }
