@@ -129,10 +129,19 @@ export function App({ loadWeather = fetchWeather, locationStatus: initialLocatio
         <WeatherCard weather={state.weather} /><SourceNotice weather={state.weather} />
       </>}
       {retry.notice && <p role="note">{retry.notice}</p>}
-      {retry.retryable && <>
-        <p aria-live="off">{retry.remaining > 0 ? `다시 시도까지 ${retry.remaining}초` : "수동으로 다시 조회할 수 있습니다."}</p>
-        <button disabled={retry.remaining > 0} onClick={() => void selectArea(retry.area)}>다시 시도</button>
-      </>}
+      {/* Keep the countdown outside the live region so only readiness is announced.
+          가능 상태만 알리도록 초읽기는 실시간 알림 영역 밖에 둡니다. */}
+      {retry.retryable && retry.remaining > 0 && (
+        <p>{retry.area} 날씨 다시 시도까지 {retry.remaining}초</p>
+      )}
+      <p aria-live="polite">{retry.retryable && retry.remaining === 0
+        ? `${retry.area} 날씨를 다시 조회할 수 있습니다.`
+        : null}</p>
+      {retry.retryable && (
+        <button disabled={retry.remaining > 0} onClick={() => void selectArea(retry.area)}>
+          같은 지역으로 다시 조회
+        </button>
+      )}
     </section>
   </main>;
 }

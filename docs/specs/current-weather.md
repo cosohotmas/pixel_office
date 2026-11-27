@@ -197,6 +197,10 @@ flowchart TD
    - 권한 거부 상태에서도 수동 선택이 작동하고 미지원 지역은 가짜 값 없이 데이터 없음을 표시합니다.
 3. Failed requests offer retry, and older responses cannot replace the latest selection.
    - 실패한 요청은 재시도를 제공하고 이전 응답이 최신 지역 결과를 덮어쓰지 않습니다.
+   - Explain the failure. When retry is offered, show the affected area and keep the button disabled during the existing wait. After the wait, announce readiness once and request the same area only when the user presses the button.
+   - 실패 이유를 설명합니다. 재시도를 제공할 때 대상 지역을 표시하고 기존 대기 중에는 버튼을 비활성화합니다. 대기가 끝나면 가능 상태를 한 번 알리고, 사용자가 버튼을 누르면 같은 지역을 요청합니다.
+   - Verify that authentication and invalid responses offer no retry, and that countdown updates stay outside the live announcement. Keep the existing retry policy and result timestamps.
+   - 인증 오류와 잘못된 응답에는 재시도 버튼이 없고, 초읽기 갱신은 실시간 알림 밖에 있는지 검증합니다. 기존 재시도 정책과 결과 기준 시각을 유지합니다.
 4. Python checks, HTTP tests, frontend types, component tests, production build, and Chromium integration pass.
    - Python 검사·HTTP 테스트·Frontend 타입·컴포넌트 테스트·배포용 빌드·Chromium 통합 검증을 통과합니다.
 5. Every changed file has an English explanation followed by Korean translation in the change report.

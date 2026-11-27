@@ -41,14 +41,14 @@ test("preserves retry waits across reload without automatic individual requests"
   await page.getByLabel("지역 직접 입력").fill("재시도");
   await page.getByRole("button", { name: "날씨 조회", exact: true }).click();
   const result = page.getByRole("region", { name: "선택 지역 결과" });
-  await expect(result.getByRole("button", { name: "다시 시도", exact: true })).toBeDisabled();
+  await expect(result.getByRole("button", { name: "같은 지역으로 다시 조회", exact: true })).toBeDisabled();
   await expect.poll(() => calls).toBe(1);
   await page.reload();
   await expect(page.getByLabel("지역 직접 입력")).toHaveValue("");
-  await expect(result.getByRole("button", { name: "다시 시도", exact: true })).toHaveCount(0);
+  await expect(result.getByRole("button", { name: "같은 지역으로 다시 조회", exact: true })).toHaveCount(0);
   await page.getByLabel("지역 직접 입력").fill("재시도");
   await page.getByRole("button", { name: "날씨 조회", exact: true }).click();
-  await expect(result.getByRole("button", { name: "다시 시도", exact: true })).toBeDisabled();
+  await expect(result.getByRole("button", { name: "같은 지역으로 다시 조회", exact: true })).toBeDisabled();
   expect(calls).toBe(1);
 });
 
@@ -67,7 +67,7 @@ for (const jump of [3600000, -3600000]) {
     await page.getByRole("button", {name:"날씨 조회",exact:true}).click();
     const result=page.getByRole("region", {name:"선택 지역 결과"});
     await expect(result).toContainText("다시 시도까지 30초");
-    await expect(result.getByRole("button", {name:"다시 시도",exact:true})).toBeDisabled();
+    await expect(result.getByRole("button", {name:"같은 지역으로 다시 조회",exact:true})).toBeDisabled();
     expect(await page.evaluate(() => {
       const row=JSON.parse(sessionStorage.getItem("weather.retry.v1")!).restrictions[0];
       return row.blockedUntil-row.receivedAt;
@@ -91,10 +91,10 @@ test("allows manual recovery after a body-stream interruption", async ({page})=>
   await page.getByLabel("지역 직접 입력").fill("통신중단");
   await page.getByRole("button", {name:"날씨 조회",exact:true}).click();
   const result=page.getByRole("region", {name:"선택 지역 결과"});
-  const retry=result.getByRole("button", {name:"다시 시도",exact:true});
+  const retry=result.getByRole("button", {name:"같은 지역으로 다시 조회",exact:true});
   await expect(retry).toBeDisabled();
   await expect(retry).toBeEnabled({timeout:7000});
-  await expect(result).toContainText("날씨 자료를 가져오지 못했습니다.");
+  await expect(result).toContainText("네트워크 문제로 날씨를 불러오지 못했습니다.");
   await retry.click();
   await expect(result).toContainText("예시 데이터가 없습니다");
   await expect(retry).toHaveCount(0);
