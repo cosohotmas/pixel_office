@@ -1655,3 +1655,14 @@ Verification: inspected `gh auth status` without exposing token values, confirme
 
 Rollout stage: Stage 1 partially verified, unchanged. Current task: live test approved, preflight blocked. Next rollout action: restore GitHub CLI authentication, then repeat read-only checks before creating any approved synthetic event.
 도입 단계: 1단계 부분 검증, 변경 없음. 현재 작업: 실제 시험 승인, 사전 확인 차단. 다음 도입 작업: 승인된 합성 이벤트를 만들기 전에 GitHub CLI 인증을 복구하고 읽기 전용 확인을 반복합니다.
+
+## Stage 2 decision record / 2단계 결정 기록
+
+- Create the decision record with the approved scope, observed evidence and closure check.
+  승인 범위, 확인한 근거와 종료 검증 기준을 담은 결정 문서를 생성했습니다.
+- The workflow previously stated the general completion rule. Its Stage 2 section now links the trial record for verification.
+  운영 흐름에는 일반 완료 기준이 있었습니다. 2단계 절에 시험 결과를 검증할 수 있는 기록 링크를 추가했습니다.
+- The meeting record previously awaited adoption. It now records Curtain's approval and links the draft.
+  회의록은 채택 대기 상태였습니다. 커튼 뒤의 승인과 초안 링크를 기록했습니다.
+- Checked local links and whitespace. Used repository workflow and trial evidence directly.
+  로컬 링크와 공백을 검사했습니다. 저장소 운영 흐름과 시험 근거를 직접 사용했습니다.
