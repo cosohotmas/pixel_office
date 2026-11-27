@@ -55,7 +55,7 @@ it.each(["no_data", "provider_error"] as const)("shows %s without a weather card
   await userEvent.type(screen.getByLabelText("지역 직접 입력"), "테스트");
   await userEvent.click(screen.getByRole("button", { name: "날씨 조회" }));
   await waitFor(() => expect(results().getByRole("status").textContent).not.toContain("불러오는 중"));
-  expect(!!results().queryByRole("button", { name: "다시 시도" })).toBe(status === "provider_error");
+  expect(!!results().queryByRole("button", { name: "같은 지역으로 다시 조회" })).toBe(status === "provider_error");
   expect(results().queryByRole("heading")).toBeNull();
   expect(results().queryByText(/기온:/)).toBeNull();
 });
@@ -71,10 +71,30 @@ it("recovers from a network error by retrying the same area", async () => {
   const input = screen.getByLabelText("지역 직접 입력");
   fireEvent.change(input, { target: { value: "테스트" } });
   await act(async () => { fireEvent.submit(input.closest("form")!); });
-  expect((results().getByRole("button", { name: "다시 시도" }) as HTMLButtonElement).disabled).toBe(true);
+  expect((results().getByRole("button", { name: "같은 지역으로 다시 조회" }) as HTMLButtonElement).disabled).toBe(true);
+  const countdown = results().getByText("테스트 날씨 다시 시도까지 5초");
+  expect(countdown.closest('[role="status"], [aria-live]')).toBeNull();
+  expect(results().queryByText("테스트 날씨를 다시 조회할 수 있습니다.")).toBeNull();
   await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
-  await act(async () => { fireEvent.click(results().getByRole("button", { name: "다시 시도" })); });
+  expect(results().getByText("테스트 날씨를 다시 조회할 수 있습니다.").getAttribute("aria-live")).toBe("polite");
+  await act(async () => { fireEvent.click(results().getByRole("button", { name: "같은 지역으로 다시 조회" })); });
   expect(results().getByRole("heading", { name: "테스트" })).toBeTruthy();
+});
+
+it.each([
+  ["invalid", "날씨 응답을 확인할 수 없습니다."],
+  ["auth", "인증 또는 권한 문제로 날씨를 조회할 수 없습니다."],
+] as const)("explains %s without offering a retry", async (kind, message) => {
+  const loader = async (area: string) => {
+    if (area === "테스트") throw new WeatherRequestError(kind);
+    return available(area);
+  };
+  render(<App loadWeather={loader} />);
+  const input = screen.getByLabelText("지역 직접 입력");
+  fireEvent.change(input, { target: { value: "테스트" } });
+  await act(async () => { fireEvent.submit(input.closest("form")!); });
+  expect(results().getByText(message)).toBeTruthy();
+  expect(results().queryByRole("button", { name: "같은 지역으로 다시 조회" })).toBeNull();
 });
 
 it("shows loading and ignores an older response that arrives last", async () => {

@@ -10,6 +10,17 @@ import type { WeatherState } from "../state/weatherState";
 // Adapters receive this page's clock so their deadlines use the coordinator's epoch.
 // 어댑터 마감 시각이 조정자의 기준과 같도록 화면 시계를 전달합니다.
 export type WeatherLoader = (area: string, signal?: AbortSignal, now?: () => number) => Promise<WeatherResponse>;
+// Explain the failure separately from the current retry action.
+// 현재 재시도 동작과 별도로 실패 이유를 설명합니다.
+const errorMessages: Record<WeatherRequestError["kind"], string> = {
+  network: "네트워크 문제로 날씨를 불러오지 못했습니다.",
+  timeout: "날씨 응답을 기다리는 시간이 초과됐습니다.",
+  server: "날씨 서비스에 문제가 발생했습니다.",
+  rate: "요청이 너무 많아 날씨를 불러오지 못했습니다.",
+  auth: "인증 또는 권한 문제로 날씨를 조회할 수 없습니다.",
+  input: "지역 입력을 확인해 주세요.",
+  invalid: "날씨 응답을 확인할 수 없습니다.",
+};
 const STORAGE_KEY = "weather.retry.v1";
 const config = (areas: string[]): Config => ({ providers:["mock"], areas:[...new Set(["서울","부산","대전","광주","강릉","제주",...areas])], kinds:["current"], lifetimeMs:FLOW_LIFETIME });
 // Callers use an already evaluated selection or a fixed representative region.
@@ -116,7 +127,7 @@ export function useWeatherRequest(loader: WeatherLoader) {
       if(active.current?.id!==id||!alive.current)return;
       const err=e instanceof WeatherRequestError?e:new WeatherRequestError("network");
       const retry=["network","timeout","server","rate"].includes(err.kind);finish(retry?"failure":"terminal");setRetryable(retry);
-      setState({status:"error",message:err.kind==="auth"?"인증 또는 권한 문제로 조회할 수 없습니다.":err.kind==="input"?"지역 입력을 확인해 주세요.":err.kind==="invalid"?"응답을 확인할 수 없습니다.":"날씨 자료를 가져오지 못했습니다."});
+      setState({status:"error",message:errorMessages[err.kind]});
     }finally{
       clearTimeout(timer!);if(active.current?.id===id){active.current=null;setRemaining(Math.max(0,Math.ceil((eligibleAt(snapshot.current,key)-clock.current())/1000)));}
     }
