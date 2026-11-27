@@ -49,7 +49,7 @@ it.each([
     expect(loader).toHaveBeenLastCalledWith("가".repeat(64),expect.any(AbortSignal),expect.any(Function));
     expect(sessionStorage.getItem("weather.retry.v1")).not.toContain(raw);
   }else{
-    await waitFor(()=>expect(result.getByRole("status").textContent).toMatch(/최대|제어문자/));
+    await waitFor(()=>expect(result.getByRole("status", { name: "" }).textContent).toMatch(/최대|제어문자/));
     expect(loader).toHaveBeenCalledTimes(6);
     expect(sessionStorage.getItem("weather.retry.v1")).toBe(before);
   }

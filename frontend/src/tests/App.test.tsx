@@ -54,7 +54,7 @@ it.each(["no_data", "provider_error"] as const)("shows %s without a weather card
   render(<App loadWeather={async area => area === "테스트" ? unavailable(status) : available(area)} />);
   await userEvent.type(screen.getByLabelText("지역 직접 입력"), "테스트");
   await userEvent.click(screen.getByRole("button", { name: "날씨 조회" }));
-  await waitFor(() => expect(results().getByRole("status").textContent).not.toContain("불러오는 중"));
+  await waitFor(() => expect(results().getByRole("status", { name: "" }).textContent).not.toContain("불러오는 중"));
   expect(!!results().queryByRole("button", { name: "같은 지역으로 다시 조회" })).toBe(status === "provider_error");
   expect(results().queryByRole("heading")).toBeNull();
   expect(results().queryByText(/기온:/)).toBeNull();
@@ -78,6 +78,44 @@ it("recovers from a network error by retrying the same area", async () => {
   await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
   expect(results().getByText("테스트 날씨를 다시 조회할 수 있습니다.").getAttribute("aria-live")).toBe("polite");
   await act(async () => { fireEvent.click(results().getByRole("button", { name: "같은 지역으로 다시 조회" })); });
+  expect(results().getByRole("heading", { name: "테스트" })).toBeTruthy();
+});
+
+it("explains exhausted retries and starts a new same-area lookup only on click", async () => {
+  vi.useFakeTimers();
+  const selectedCalls: string[] = [];
+  const loader = async (area: string) => {
+    if (area === "테스트") {
+      selectedCalls.push(area);
+      if (selectedCalls.length <= 3) throw new WeatherRequestError("network");
+    }
+    return available(area);
+  };
+  render(<App loadWeather={loader} />);
+  const input = screen.getByLabelText("지역 직접 입력");
+  fireEvent.change(input, { target: { value: "테스트" } });
+  await act(async () => { fireEvent.submit(input.closest("form")!); });
+  const button = () => results().getByRole<HTMLButtonElement>("button", { name: "같은 지역으로 다시 조회" });
+  for (const wait of [5000, 15000]) {
+    await act(async () => { await vi.advanceTimersByTimeAsync(wait); });
+    await act(async () => { fireEvent.click(button()); });
+  }
+  expect(button().disabled).toBe(true);
+  const announcement = results().getByRole("status", { name: "날씨 재조회 가능 안내" });
+  expect(announcement.textContent).toBe("");
+  expect(announcement.closest("[aria-busy]")).toBeNull();
+  expect(announcement.getAttribute("aria-atomic")).toBe("true");
+  const countdown = results().getByText(/재시도를 모두 사용했습니다.*60초 남았습니다/);
+  expect(countdown.closest("[aria-live]")).toBeNull();
+  await act(async () => { await vi.advanceTimersByTimeAsync(59000); });
+  expect(button().disabled).toBe(true);
+  expect(results().getByText(/재시도를 모두 사용했습니다.*1초 남았습니다/)).toBeTruthy();
+  await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+  expect(button().disabled).toBe(false);
+  expect(announcement.textContent).toBe("테스트 날씨를 새로 조회할 수 있습니다.");
+  expect(selectedCalls).toEqual(["테스트", "테스트", "테스트"]);
+  await act(async () => { fireEvent.click(button()); });
+  expect(selectedCalls).toEqual(["테스트", "테스트", "테스트", "테스트"]);
   expect(results().getByRole("heading", { name: "테스트" })).toBeTruthy();
 });
 
