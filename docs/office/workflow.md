@@ -69,6 +69,17 @@ Distinguish not started, in progress, implemented-but-unverified and verified co
 
 Use a bright cyan border (`#22d3ee`) to highlight the current rollout stage in the overall flow. Use amber (`#f59e0b`) for the current task step in the separate task-detail flow. Cyan marks the key rollout stage; it does not mean error, completion, or approval. Update the highlighted node when the rollout stage changes.
 전체 도입 흐름에서는 밝은 청록색 테두리(`#22d3ee`)로 현재 도입 단계를 강조합니다. 별도의 세부 작업 흐름에서는 현재 작업 단계에 주황색(`#f59e0b`)을 사용합니다. 청록색은 핵심 도입 단계 표시이며 오류·완료·승인을 뜻하지 않습니다. 도입 단계가 바뀌면 강조 노드도 함께 바꿉니다.
+### Verification labels / 확인 수준 표기
+
+Apply these labels item by item in all reports, including task updates and final reports. For verified facts, state the supporting observation or source.
+작업 중간 보고와 최종 보고를 포함해 모든 보고에서 해당하는 항목마다 아래 표기를 붙입니다. 확인된 사실에는 관찰 결과나 출처를 적습니다.
+
+| 표기 | 사용 기준 | 예시 |
+| --- | --- | --- |
+| `[빈칸]` | 값이나 결정이 아직 정해지지 않았거나 기록에 비어 있을 때 | 현황판 호스팅 서비스 [빈칸] |
+| `[확인필요]` | 실제 동작, 적용 상태 또는 사실 여부를 증거로 확인해야 할 때 | 온라인에서 Supabase 회의 기록 표시 [확인필요] |
+| `[제안후보]` | 채택 여부가 정해지지 않은 선택지를 제시할 때 | OpenAI Sites [제안후보] |
+
 
 ```mermaid
 flowchart LR

@@ -12,6 +12,11 @@
 - Treat `docs/weather-service/PRD.md` as the detailed requirements document.
   <!-- `docs/weather-service/PRD.md`를 상세 요구사항 문서로 사용합니다. -->
 
+## Verification Labels in Reports
+
+- Apply `[빈칸]`, `[확인필요]`, and `[제안후보]` to each applicable item in all reports, including requirements, decisions, implementation, tests, integrations, and deployment. Follow the definitions in [the reporting rules](docs/office/workflow.md#verification-labels--확인-수준-표기).
+  <!-- 요구사항·결정·구현·테스트·연동·배포 등 모든 보고에서 해당 항목마다 세 표기를 적용하고 workflow.md의 정의를 따릅니다. -->
+
 ## Rollout Stage Reporting
 
 <!-- Report the office rollout stage separately from an individual feature's progress. -->
